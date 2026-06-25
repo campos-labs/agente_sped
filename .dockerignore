@@ -1,0 +1,35 @@
+# Cache e arquivos temporários do Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Ambientes virtuais locais
+.venv/
+venv/
+ENV/
+env/
+
+# Dados locais e arquivos de teste (Evita buildar o container com gigas de SPEDs locais)
+tests/
+
+# Configurações de IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos de controle de versão
+.git/
+.gitignore
+
+# Segredos e variáveis de ambiente locais (CRÍTICO para segurança)
+.env
+*.pem
+*.key
+
+# Documentação local e logs
+*.log
+README.md
