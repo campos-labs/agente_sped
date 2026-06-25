@@ -10,3 +10,4 @@ class SPEDAgentState(TypedDict):
     generated_sql: str
     duckdb_result: List[Dict[str, Any]]
     sql_error: str
+    iterations: int

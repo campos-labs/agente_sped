@@ -36,13 +36,14 @@ def run_agent_cli():
                 "sped_file_path": sped_file_path,
                 "generated_sql": "",
                 "duckdb_result": [],
-                "sql_error": ""
+                "sql_error": "",
+                "iterations": 0
             }
 
             print("⚙️  O agente está processando o arquivo com DuckDB...")
 
             # Executa o grafo de ponta a ponta
-            final_state = graph.invoke(initial_state)  # type: ignore
+            final_state = graph.invoke(initial_state,config={"recursion_limit": 15})  
 
             # Captura a resposta final (última mensagem do histórico)
             final_message = final_state["messages"][-1].content
