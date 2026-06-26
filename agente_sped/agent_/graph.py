@@ -1,10 +1,12 @@
 from langgraph.graph import END, START, StateGraph
-from agente_sped.agent_.state import SPEDAgentState
-from agente_sped.agent_.nodes.executor import execute_query_node 
+
+from agente_sped.agent_.nodes.executor import execute_query_node
 from agente_sped.agent_.nodes.formatter import format_response_node
 from agente_sped.agent_.nodes.generator import generate_sql_node
+from agente_sped.agent_.state import SPEDAgentState
 
 MAX_ITERATIONS = 5  # limite de ciclos SQL
+
 
 def router_edge(state: SPEDAgentState) -> str:
     last_message = state["messages"][-1]

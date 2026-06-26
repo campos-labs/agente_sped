@@ -7,7 +7,7 @@ from agente_sped.agent_.graph import graph
 
 def run_agent_cli():
     print("==================================================")
-    print("BEM-VINDO AO AGENTE SPED FISCAL -- Campos-Labs")
+    print("  BEM-VINDO AO AGENTE SPED FISCAL -  CAMPOS LABS  ")   
     print("==================================================")
 
     sped_file_path = "data/exemplo_sped.txt"
@@ -43,13 +43,13 @@ def run_agent_cli():
             print("⚙️  O agente está processando o arquivo com DuckDB...")
 
             # Executa o grafo de ponta a ponta
-            final_state = graph.invoke(initial_state,config={"recursion_limit": 15})  
+            final_state = graph.invoke(initial_state, config={"recursion_limit": 15})
 
             # Captura a resposta final (última mensagem do histórico)
             final_message = final_state["messages"][-1].content
 
             print(f"\n🤖 Resposta:\n{final_message}\n")
-            print("-" * 50)
+            print("==================================================")
 
         except Exception as e:
             print(f"\n❌ Ocorreu um erro durante a execução do grafo: {e}\n")

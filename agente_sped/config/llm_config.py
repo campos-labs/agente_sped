@@ -9,8 +9,8 @@ def call_llm() -> BaseChatModel:
         model_provider=settings.MODEL_PROVIDER,
         max_retries=settings.MAX_RETRIES,
         temperature=settings.TEMPERATURE,
-        api_key=settings.GOOGLE_API_KEY,  
-        
+        api_key=settings.GOOGLE_API_KEY,
+
 
     )
     return model
