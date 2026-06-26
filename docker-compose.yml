@@ -1,79 +1,12 @@
-version: "3.9"
-
 services:
-  app:
+  agente-sped:
     build:
       context: .
       dockerfile: Dockerfile
-      target: runtime
     image: agente-sped:latest
-    env_file: .env
-    environment:
-      # Opcional: substitua ao iniciar para mapear UID/GID do host
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
-    user: "${PUID:-1000}:${PGID:-1000}"
-    # Em produção, preferimos um volume nomeado para dados persistentes
+    env_file:
+      - .env
     volumes:
-      - data:/app/data:ro
-    # Mantenha /tmp em tmpfs para reduzir escrita em disco
-    tmpfs:
-      - /tmp
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c 'import importlib,sys; importlib.import_module(\"agente_sped\"); sys.exit(0)'"]
-      interval: 1m
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    # Minimiza capacidades do container
-    cap_drop:
-      - ALL
-    # Comando padrão de execução (não expõe portas desnecessárias)
-    command: ["python", "-m", "agente_sped.main"]
-
-  dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
-    image: agente-sped:dev
-    env_file: .env
-    environment:
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
-      - PYTHONUNBUFFERED=1
-    user: "${PUID:-1000}:${PGID:-1000}"
-    # Monta o código-fonte local para desenvolvimento (hot-edit)
-    volumes:
-      - ./:/app:rw
-      - ./data:/app/data:rw
-    working_dir: /app
-    tty: true
-    stdin_open: true
-    restart: "no"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c 'import importlib,sys; importlib.import_module(\"agente_sped\"); sys.exit(0)'"]
-      interval: 1m
-      timeout: 10s
-      retries: 3
-    command: ["bash"]
-
-volumes:
-  # Volume nomeado para dados. Em dev usamos bind-mount local.
-  data:
-    driver: local
-
-networks:
-  default:
-    driver: bridge
+      - ./data:/app/data
+    stdin_open: true   # equivalente ao -i do docker run
+    tty: true          # equivalente ao -t do docker run

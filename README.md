@@ -136,6 +136,10 @@ docker build -t agente-sped:latest .
 docker run -it --rm --env-file .env -v $PWD/data:/app/data agente-sped:latest
 ```
 
+```bash
+docker compose run --rm agente-sped
+```
+
 ## 💡 Princípios de Design Aplicados
 
 * Clean Code & SRP: Cada nó do grafo possui responsabilidade única e seu código fica em arquivo isolado. A infraestrutura do DuckDB não se mistura com a regra de IA.
