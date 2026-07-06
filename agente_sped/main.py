@@ -6,6 +6,7 @@ from agente_sped.agent_.graph import graph
 
 
 def run_agent_cli():
+    os.system('cls' if os.name == 'nt' else 'clear')
     print("==================================================")
     print("  BEM-VINDO AO AGENTE SPED FISCAL -  CAMPOS LABS  ")   
     print("==================================================")
