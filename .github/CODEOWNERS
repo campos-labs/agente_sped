@@ -1,0 +1,10 @@
+# CODEOWNERS
+
+## Responsáveis por todo o repositório
+
+**@renatocampos07** **@RogerioCampos07**
+
+## Arquivos de governança
+
+/.github/CODEOWNERS **@renatocampos07** **@RogerioCampos07**
+/LICENSE **@renatocampos07** **@RogerioCampos07**
