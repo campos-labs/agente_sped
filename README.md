@@ -1,146 +1,66 @@
-# agente_sped
+# Agente SPED Fiscal
 
-Sistema de agentes autônomos utilizando **LangGraph** e **DuckDB** para análise preditiva e consultas analíticas diretamente em arquivos brutos de **SPED Fiscal (.txt)**.
+Análises rastreáveis de EFD ICMS/IPI em uma interface local, com consultas reproduzíveis e IA opcional na triagem.
 
-O objetivo deste projeto é permitir que o usuário faça perguntas em linguagem natural sobre o documento fiscal. O agente orquestra a intenção, gera e corrige queries SQL automaticamente através de LLMs e executa essas consultas diretamente no arquivo de texto em alta performance utilizando o DuckDB.
+Carregue uma escrituração, selecione uma análise ou formule uma pergunta. Consulte resultados, critérios aplicados e registros de origem; exporte as evidências em CSV ou Excel sem depender de geração livre de SQL.
 
----
+## O que você pode analisar
 
-## 🗺️ Arquitetura do Grafo (Fluxo do Agente)
+As oito análises do catálogo cobrem:
 
-O fluxo de execução do agente e a estrutura de estados do sistema foram desenhados da seguinte forma:
+- **Operações:** valores de saída por CFOP e concentração de compras por fornecedor.
+- **Documentos:** cancelamentos e outras situações documentais, possíveis duplicidades e lacunas de numeração.
+- **Produção:** atividade declarada no Bloco K.
+- **Revisão fiscal e cadastral:** itens de alto valor com NCM genérico e candidatos à investigação de ICMS em operações de uso ou consumo.
 
-![Grafo do Agente SPED](agente_sped_grafo.png)
+Cada resultado apresenta parâmetros, critérios, limitações e referências à escrituração. Indícios orientam a revisão do analista; não são conclusões automáticas de irregularidade.
 
----
+## Executar localmente
 
-## 🛠️ Tecnologias Principais
+Com Docker e Docker Compose disponíveis:
 
-* **Python 3.13** (Ambiente moderno e otimizado)
-* **Poetry** (Gerenciamento de dependências e *Flat Layout*)
-* **LangGraph** (Orquestração do fluxo de agentes baseado em estados)
-* **DuckDB** (Engine SQL em memória para leitura ultrarrápida do SPED .txt)
-* **Pydantic v2** (Validação de schemas e outputs estruturados)
-
----
-
-## 📁 Estrutura do Projeto
-
-O projeto adota o **Flat Layout** nativo do Poetry, eliminando pastas intermediárias de código-fonte e isolando as responsabilidades de forma clara:
-
-```text
-agente_sped/                   # Raiz do repositório Git
-│
-├── data/                       # Arquivos SPED brutos para testes locais
-│   └── exemplo_sped.txt
-│
-├── agente_sped/                # O pacote Python principal do projeto
-│   ├── __init__.py
-│   │
-│   ├── config/                 # Configurações globais e variáveis de ambiente
-│   │   ├── __init__.py
-│   │   └── settings.py
-│   │
-│   ├── database/               # Camada de infraestrutura e execução do DuckDB
-│   │   ├── __init__.py
-│   │   └── duckdb_client.py
-│   │
-│   ├── agent/                  # Coração da inteligência (LangGraph)
-│   │   ├── __init__.py
-│   │   ├── state.py            # Definição do SPEDAgentState
-│   │   ├── graph.py            # Orquestrador, Edges e compilação do grafo
-│   │   │
-│   │   ├── nodes/              # Nós de processamento do grafo
-│   │   │   ├── __init__.py
-│   │   │   ├── generator.py    # Nó: LLM_GENERATE_SQL
-│   │   │   ├── executor.py     # Nó: DUCKDB_EXECUTE_QUERY
-│   │   │   └── formatter.py    # Nó: LLM_FORMAT_RESPONSE
-│   │   │
-│   │   └── prompts/            # Engenharia de prompts isolada do código
-│   │       ├── __init__.py
-│   │       ├── sql_generator.py
-│   │       └── responder.py
-│   │
-│   └── utils/                  # Utilitários e mapeadores do SPED
-│       ├── __init__.py
-│       └── sped_parsers.py
-│
-├── tests/                      # Testes automatizados (pytest)
-│   ├── __init__.py
-│   ├── test_duckdb.py
-│   └── test_graph.py
-│
-├── 9590275997527188501.jpeg    # Diagrama do Grafo
-├── .env                        # Variáveis de ambiente locais (Ignorado)
-├── .dockerignore
-├── .gitignore
-├── pyproject.toml              # Configurações do Poetry (Flat Layout)
-└── README.md
-```
-
----
-
-## 🚀 Como Executar o Projeto
-
-* **Pré-requisitos**
-* **Python 3.13+**
-* **Poetry instalado**
-
----
-
-## 1. Clonar o repositório e Instalar as dependências
-
-```Bash
-git clone [https://github.com/seu-usuario/agente_sped.git](https://github.com/seu-usuario/agente_sped.git)
+```bash
+git clone https://github.com/campos-labs/agente_sped.git
 cd agente_sped
-poetry install
+docker compose up --build
 ```
 
----
+Abra o endereço local informado na inicialização. Para conhecer o fluxo, utilize a fixture sintética `sped_icms_analysis_reference.txt` da suíte de testes.
 
-## 2. Configurar as variáveis de ambiente
+Envie o TXT, confira o período e o perfil do arquivo e escolha uma análise. A interface reúne perguntas e sugestões em um painel, com tabelas, síntese, SQL e evidências na área principal. As pílulas permitem continuar a investigação; exportações reutilizam o resultado selecionado.
 
-Crie um arquivo .env na raiz do projeto com as suas credenciais:
+## IA opcional, resultados determinísticos
 
-```Snippet de código
-OPENAI_API_KEY=sua_chave_aqui
-# ou se preferir utilizar o Gemini da Google:
-GOOGLE_API_KEY=sua_chave_aqui
-```
+O funcionamento padrão dispensa credenciais de IA. Com o provedor configurado e `AI_ROUTING_ENABLED=true`, o Gemini auxilia a identificação de intenções ambíguas; a análise e seus parâmetros continuam sujeitos à validação local.
 
----
+SQL, cálculos e respostas analíticas seguem o catálogo versionado. O modelo não consulta livremente a base nem decide quais procedimentos executar sem ação do usuário.
 
-## 3. Executar os Testes Automatizados
+O TXT e os resultados completos permanecem no ambiente local. Quando habilitada, a triagem externa recebe somente a pergunta higienizada e o contexto mínimo necessário do catálogo.
 
-Para garantir que a engine do DuckDB está interpretando corretamente o arquivo SPED local na pasta data/:
+## Sessão e privacidade
 
-```Bash
-poetry run pytest
-```
+Fechar a aba não apaga o trabalho. A sessão pode ser recuperada no mesmo navegador enquanto o identificador e os dados locais estiverem disponíveis, com retenção padrão de 24 horas por inatividade, configurável.
 
----
+A ação de limpar remove o arquivo e os dados associados ao workspace. A retomada recupera resultados concluídos; não garante continuação de uma execução interrompida.
 
-## 🐳 Execução Direta via Linha de Comando
+A interface é destinada ao uso local, sem exposição pública. Utilize apenas dados sintéticos em demonstrações, Issues e PRs.
 
-Caso prefira interagir diretamente com o CLI do Docker Engine, utilize os comandos equivalentes:
+## Escopo
 
-1.**Construir a imagem local:**
+Suporta EFD ICMS/IPI com `COD_VER=020`, um arquivo por workspace e análises individuais catalogadas. Não executa consultas SQL livres, cruzamentos entre arquivos ou outras obrigações SPED.
+
+O produto apoia investigação técnica: não substitui o PVA, não transmite escriturações e não emite parecer fiscal ou jurídico conclusivo.
+
+## Desenvolvimento
+
+Python 3.14, uv, DuckDB e LangGraph; interface com FastAPI, Jinja2 e HTMX. Testes com pytest e qualidade de código com Ruff.
+
+Para preparar o ambiente de desenvolvimento:
 
 ```bash
-docker build -t agente-sped:latest .
+uv sync --locked
 ```
 
-2.**Rodar o container (Mapeando Volumes e Variáveis de Ambiente):**
+A arquitetura está em [DESIGN.md](DESIGN.md), os comandos e configurações em [pyproject.toml](pyproject.toml) e as orientações para agentes de desenvolvimento em [AGENTS.md](AGENTS.md).
 
-```bash
-docker run -it --rm --env-file .env -v $PWD/data:/app/data agente-sped:latest
-```
-
-```bash
-docker compose run --rm agente-sped
-```
-
-## 💡 Princípios de Design Aplicados
-
-* Clean Code & SRP: Cada nó do grafo possui responsabilidade única e seu código fica em arquivo isolado. A infraestrutura do DuckDB não se mistura com a regra de IA.
-* Self-Correction: Caso a query gerada inicialmente falhe ao rodar no DuckDB, o grafo captura o sql_error no estado e permite que a LLM corrija o código SQL automaticamente antes de responder ao usuário
+Contribuições seguem o [fluxo da Campos Labs](https://github.com/campos-labs/.github/blob/main/CONTRIBUTING.md). Para relatar vulnerabilidades, consulte a [política de segurança](https://github.com/campos-labs/.github/blob/main/SECURITY.md).
