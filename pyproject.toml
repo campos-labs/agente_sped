@@ -1,59 +1,37 @@
 [project]
 name = "agente-sped"
 version = "0.1.0"
-description = "Agente LangGraph com DuckDB para análise de SPED Fiscal"
+description = "Análises locais e rastreáveis de SPED Fiscal"
 authors = [
-    {name = "Rogerio Campos",email = "rogerio.campos07@gmail.com"},
-    {name = "Renato Campos",email = "renatocampos07@gmail.com"},
+    { name = "Rogerio Campos", email = "rogerio.campos07@gmail.com" },
+    { name = "Renato Campos", email = "renatocampos07@gmail.com" },
 ]
 readme = "README.md"
-requires-python = ">=3.14,<4.0"
+requires-python = ">=3.14,<3.15"
 dependencies = [
-    "pydantic-settings (>=2.14.1,<3.0.0)",
-    "langchain (>=1.3.4,<2.0.0)",
-    "langgraph (>=1.2.4,<2.0.0)",
-    "langchain-google-genai (>=4.2.4,<5.0.0)",
-    "pydantic (>=2.13.4,<3.0.0)",
-    "duckdb (>=1.5.3,<2.0.0)"
+    "pydantic>=2.13.4,<3.0.0",
+    "pydantic-settings>=2.14.1,<3.0.0",
 ]
+
+[project.scripts]
+agente-sped = "agente_sped.interface.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13"]
+build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "ruff (>=0.15.16,<0.16.0)",
-    "pytest (>=9.0.3,<10.0.0)",
-    "taskipy (>=1.14.1,<2.0.0)"
+    "pytest>=9.0.3,<10.0.0",
+    "ruff>=0.15.16,<0.16.0",
 ]
 
 [tool.ruff]
-extend-exclude = ['migrations']
+target-version = "py314"
+line-length = 79
 
 [tool.ruff.lint]
-preview = true
-select = ['I', 'F', 'E', 'W', 'PL', 'PT']
+select = ["I", "F", "E", "W", "PL", "PT"]
 
 [tool.ruff.format]
-preview = true
-quote-style = 'single'
-
-[tool.pytest.ini_options]
-pythonpath = "."
-addopts = '-p no:warnings'
-
-[tool.coverage.run]
-disable_warnings = ["no-data-collected"]
-
-[tool.taskipy.tasks]
-lint = 'ruff check'
-pre_format = 'ruff check --fix'
-format = 'ruff format'
-pre_test = 'task lint'
-test = 'pytest -s -x --cov=agente_sped -vv'
-post_test = 'coverage html'
-container = "docker run -it --rm --env-file .env -v $PWD/data:/app/data agente-sped:latest"
-
-[tool.poetry.scripts]
-agente-sped = "agente_sped.main:run_agent_cli"
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+quote-style = "single"
