@@ -527,9 +527,8 @@ def _readiness(
         _guard_values(
             connection,
             'c100',
-            ('vl_doc',),
-            f"ind_oper = '0' AND ind_emit = '1' AND {regular} AND {period} "
-            "AND NULLIF(TRIM(cod_part), '') IS NOT NULL",
+            ('cod_part', 'vl_doc'),
+            f"ind_oper = '0' AND ind_emit = '1' AND {regular} AND {period}",
             parameters,
         )
     elif analysis_id == 'possible_duplicate_documents':
@@ -586,6 +585,13 @@ def _item_readiness(
             'Não é possível determinar NCM de item '
             'sem cadastro correspondente.'
         )
+    _guard_values(
+        connection,
+        relation,
+        ('item.cod_ncm',),
+        candidate,
+        parameters,
+    )
     _guard_values(
         connection,
         relation,

@@ -243,6 +243,16 @@ class AnalysisDefinition(_Contract):
     limitations: list[str]
 
     @model_validator(mode='after')
+    def check_sensitive_columns(self) -> 'AnalysisDefinition':
+        sensitive = self.privacy.sensitive_columns
+        if len(sensitive) != len(set(sensitive)):
+            raise ValueError('Colunas sensíveis duplicadas.')
+        result_columns = {column.name for column in self.result.columns}
+        if not set(sensitive) <= result_columns:
+            raise ValueError('Coluna sensível ausente do resultado declarado.')
+        return self
+
+    @model_validator(mode='after')
     def check_parameters(self) -> 'AnalysisDefinition':
         for name, source in (
             ('start_date', 'file_profile.period_start'),

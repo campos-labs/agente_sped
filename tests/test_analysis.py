@@ -253,9 +253,14 @@ def test_yaml_does_not_construct_arbitrary_python_objects(tmp_path):
         ('top_n: {type: integer', 'top_n: {unknown: true, type: integer'),
         ('default: 50.0, label:', 'default: 50.0, unknown: true, label:'),
         ('      row_limit: 20', '      unknown: true\n      row_limit: 20'),
+        (
+            'sensitive_columns: []',
+            'sensitive_columns: [missing_result_column]',
+        ),
+        ('sensitive_columns: []', 'sensitive_columns: [cfop, cfop]'),
     ],
 )
-def test_catalog_rejects_unknown_operational_fields(
+def test_catalog_rejects_invalid_operational_contracts(
     tmp_path, original, replacement
 ):
     path = tmp_path / 'catalog.yml'
@@ -725,6 +730,14 @@ def test_known_empty_k230_is_available_but_unverified_quantity_is_not(
             'supplier_concentration',
             'UPDATE c100 SET vl_doc=NULL WHERE record_id=6',
         ),
+        (
+            'supplier_concentration',
+            'UPDATE c100 SET cod_part=NULL WHERE record_id=6',
+        ),
+        (
+            'supplier_concentration',
+            "UPDATE c100 SET cod_part='   ' WHERE record_id=6",
+        ),
         ('generic_ncm_high_value', 'UPDATE c170 SET vl_item=NULL'),
         (
             'possible_credit_on_consumption_cfop',
@@ -773,6 +786,13 @@ def test_generic_ncm_cannot_be_determined_without_corresponding_item(database):
     _change_database(database, "UPDATE c170 SET cod_item='missing'")
     with pytest.raises(AnalysisUnavailableError, match='determinar NCM'):
         execute_analysis(database, 'generic_ncm_high_value')
+    _change_database(database, "UPDATE c170 SET cod_item='item'")
+    for missing_ncm in ('NULL', "''", "'   '"):
+        _change_database(database, f'UPDATE "0200" SET cod_ncm={missing_ncm}')
+        with pytest.raises(
+            AnalysisUnavailableError, match='Dados necessários'
+        ):
+            execute_analysis(database, 'generic_ncm_high_value')
 
 
 def test_missing_or_invalid_database_has_controlled_error(tmp_path):

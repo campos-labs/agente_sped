@@ -6,9 +6,14 @@ from decimal import Decimal
 from pathlib import Path
 from shutil import copyfile
 
+import duckdb
 import pytest
 
-from agente_sped.application.analysis import AnalysisResult, execute_analysis
+from agente_sped.application.analysis import (
+    AnalysisResult,
+    AnalysisUnavailableError,
+    execute_analysis,
+)
 from agente_sped.application.ingestion import analyze_catalogued_file
 from agente_sped.application.parsing import parse_sped
 from agente_sped.domain.layout import LayoutCatalog
@@ -140,18 +145,13 @@ def test_catalogued_analysis_matches_its_operational_reference(
     assert result.truncated is False
     assert result.status == 'completed'
     assert _reference_values(result) == expected
-    assert result.catalog_version == '1.1.0'
-    assert result.version == (
-        '1.1.0'
-        if analysis_id
-        in {
-            'cancelled_documents',
-            'block_k_activity',
-            'possible_duplicate_documents',
-            'document_sequence_gaps',
-        }
-        else '1.0.0'
-    )
+    assert result.catalog_version == '1.1.1'
+    assert result.version == {
+        'cancelled_documents': '1.1.0',
+        'block_k_activity': '1.1.0',
+        'possible_duplicate_documents': '1.1.0',
+        'document_sequence_gaps': '1.1.1',
+    }.get(analysis_id, '1.0.0')
     assert result.source_sha256 == _ORIGINAL_FIXTURE_HASH
     assert result.analysis_catalog_sha256 == catalog.source_sha256
     assert (workspace / 'source.txt').read_bytes() == _FIXTURE.read_bytes()
@@ -266,6 +266,66 @@ def test_research_snapshot_and_original_fixture_remain_unchanged() -> None:
         ).hexdigest()
         == (provenance['operational_catalog']['sha256'])
     )
+    assert (
+        len((_DATA / 'analysis_catalog.yml').read_bytes())
+        == (provenance['operational_catalog']['byte_length'])
+    )
+    assert provenance['operational_catalog']['catalog_version'] == '1.1.1'
+
+
+def test_sequence_gaps_preserves_and_ignores_irrelevant_invalid_date(
+    reference_run: ReferenceRun,
+    tmp_path: Path,
+) -> None:
+    _, layout, catalog_path = reference_run
+    lines = _FIXTURE.read_bytes().splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        fields = line.split(b'|')
+        if fields[1:2] == [b'C100'] and fields[8] == b'6002':
+            fields[10] = b'31022026'
+            lines[index] = b'|'.join(fields)
+            break
+    else:
+        raise AssertionError('Documento de referência não encontrado.')
+    source = tmp_path / 'invalid-document-date.txt'
+    source.write_bytes(b''.join(lines))
+    parsed = parse_sped(source, layout)
+    cancelled = next(
+        record
+        for record in parsed.records
+        if record.record_code == 'C100' and record.raw_values[8] == '6002'
+    )
+    assert cancelled.raw_values[10] == '31022026'
+    assert cancelled.typed_values[10] is None
+    assert cancelled.field_errors == {10: 'invalid_date'}
+    workspace = materialize_workspace(
+        parsed,
+        layout,
+        tmp_path / 'invalid-date-workspace',
+        layout_catalog_path=catalog_path,
+    )
+    result = execute_analysis(
+        workspace.database_path, 'document_sequence_gaps'
+    )
+    catalog = load_analysis_catalog()
+    assert (
+        _reference_values(result)
+        == (catalog.reference_validation['expected']['document_sequence_gaps'])
+    )
+    assert result.catalog_version == result.version == '1.1.1'
+    with duckdb.connect(
+        str(workspace.database_path), read_only=True
+    ) as database:
+        assert database.execute(
+            'SELECT position, error_code FROM field_errors '
+            'WHERE record_id = ?',
+            [cancelled.record_id],
+        ).fetchall() == [(10, 'invalid_date')]
+    for analysis_id in ('cancelled_documents', 'movement_by_cfop'):
+        with pytest.raises(
+            AnalysisUnavailableError, match='campos necessários'
+        ):
+            execute_analysis(workspace.database_path, analysis_id)
 
 
 def test_cancelled_record_preserves_exception_fields_and_absent_values(

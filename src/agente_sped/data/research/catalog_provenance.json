@@ -15,9 +15,9 @@
   },
   "operational_catalog": {
     "path": "src/agente_sped/data/analysis_catalog.yml",
-    "catalog_version": "1.1.0",
-    "sha256": "2ffe36501e4e6ab0c0c6ec3110d94ab15ce2a20ed93444d45f08c935e0b2f6ec",
-    "byte_length": 43732
+    "catalog_version": "1.1.1",
+    "sha256": "6fba16be9170adea5a2e1a4bfbe76be27beb233ca4d251e3e3a1a715e8fe540f",
+    "byte_length": 43724
   },
   "original_fixture": {
     "path": "tests/fixtures/sped_icms_analysis_reference.txt",
@@ -86,6 +86,17 @@
       "changes": [
         "SQL e gabarito histórico permanecem idênticos. Segue o filtro original por DT_DOC, que exclui C100 sem data documental.",
         "A ausência global de DT_DOC não bloqueia a análise dos registros datados. O executor informa, nas limitações, a quantidade de C100 sem DT_DOC excluídos no arquivo inteiro, sem atribuição ao período."
+      ]
+    },
+    {
+      "analysis_id": "document_sequence_gaps",
+      "version": "1.1.1",
+      "previous_version": "1.1.0",
+      "review_comment_id": 4254888606,
+      "changes": [
+        "Remove DT_DOC de availability.required_fields de C100: P6 considera o período integral do arquivo e seu SQL não usa a data do documento.",
+        "Um invalid_date em C100.DT_DOC permanece preservado como erro de campo no workspace e não bloqueia P6 por uma dependência irrelevante. As demais análises mantêm seus próprios contratos de disponibilidade.",
+        "SQL e gabaritos permanecem idênticos; catálogo operacional passa a 1.1.1, somente P6 passa a 1.1.1, e o snapshot histórico permanece intocado."
       ]
     }
   ],

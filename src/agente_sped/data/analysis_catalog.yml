@@ -4,7 +4,7 @@
 # centralizados neste arquivo para facilitar revisão e rastreabilidade.
 
 schema_version: "1"
-catalog_version: "1.1.0"
+catalog_version: "1.1.1"
 product_release: "v1.0.0"
 catalog_id: efd_icms_ipi_individual_analyses
 language: pt-BR
@@ -622,7 +622,7 @@ analyses:
 
   # 06
   document_sequence_gaps:
-    version: "1.1.0"
+    version: "1.1.1"
     display_order: 60
     title: Possíveis lacunas no sequencial de documentos
     description: >
@@ -642,7 +642,7 @@ analyses:
     availability:
       required_records: [C100]
       required_fields:
-        C100: [IND_OPER, IND_EMIT, COD_MOD, COD_SIT, SER, NUM_DOC, DT_DOC]
+        C100: [IND_OPER, IND_EMIT, COD_MOD, COD_SIT, SER, NUM_DOC]
     parameters:
       start_date: *period_start
       end_date: *period_end
