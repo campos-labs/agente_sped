@@ -1,0 +1,7 @@
+# Preserve os bytes dos snapshots usados para proveniência e regressão.
+src/agente_sped/data/layout/sped_layout_fields.csv -text
+src/agente_sped/data/analysis_catalog.yml -text
+src/agente_sped/data/research/*.yml -text
+tests/fixtures/sped_icms_analysis_reference.txt -text
+tests/fixtures/cancelled_document_minimal.txt -text
+src/agente_sped/data/layout/metadata.json text eol=lf

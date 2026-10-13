@@ -7,3 +7,6 @@
 !src/
 !src/**/
 !src/**/*.py
+!src/agente_sped/data/**/*.csv
+!src/agente_sped/data/**/*.json
+!src/agente_sped/data/**/*.yml
