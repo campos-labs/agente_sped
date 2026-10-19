@@ -3,7 +3,8 @@
 import math
 import re
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -87,7 +88,9 @@ def _decimal_input(value: object) -> Decimal:
     return decimal
 
 
-class _WorkspaceMetadata(BaseModel):
+class WorkspaceProfile(BaseModel):
+    """Validated identity and period of one local workspace."""
+
     model_config = ConfigDict(extra='forbid', strict=True)
 
     file_id: Annotated[str, Field(min_length=1)]
@@ -97,6 +100,13 @@ class _WorkspaceMetadata(BaseModel):
     period_end: date
     layout_source_sha256: Annotated[str, Field(pattern=r'^[0-9a-f]{64}$')]
     layout_metadata_sha256: Annotated[str, Field(pattern=r'^[0-9a-f]{64}$')]
+
+
+@dataclass(frozen=True)
+class AvailabilityStatus:
+    available: bool
+    reason: str | None
+    parameters: dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -170,7 +180,7 @@ def _schema(
         )
 
 
-def _metadata(connection: duckdb.DuckDBPyConnection) -> _WorkspaceMetadata:
+def _metadata(connection: duckdb.DuckDBPyConnection) -> WorkspaceProfile:
     expected = dict.fromkeys(_METADATA_COLUMNS, 'VARCHAR')
     expected.update(period_start='DATE', period_end='DATE')
     _schema(connection, 'workspace_metadata', expected)
@@ -184,7 +194,7 @@ def _metadata(connection: duckdb.DuckDBPyConnection) -> _WorkspaceMetadata:
             'O workspace deve identificar exatamente um arquivo.'
         )
     try:
-        metadata = _WorkspaceMetadata.model_validate(
+        metadata = WorkspaceProfile.model_validate(
             dict(zip(_METADATA_COLUMNS, rows[0], strict=True))
         )
     except ValidationError as error:
@@ -194,6 +204,74 @@ def _metadata(connection: duckdb.DuckDBPyConnection) -> _WorkspaceMetadata:
     if metadata.period_start > metadata.period_end:
         raise AnalysisUnavailableError('Período do workspace inválido.')
     return metadata
+
+
+@contextmanager
+def _read_workspace(
+    database_path: Path, seconds: float
+) -> Iterator[tuple[duckdb.DuckDBPyConnection, Callable[[], float]]]:
+    if not isinstance(database_path, Path) or not database_path.is_file():
+        raise AnalysisUnavailableError('Banco do workspace indisponível.')
+    started = time.monotonic()
+    interrupted = Event()
+    try:
+        connection = duckdb.connect(
+            str(database_path),
+            read_only=True,
+            config={
+                'enable_external_access': 'false',
+                'autoinstall_known_extensions': 'false',
+                'autoload_known_extensions': 'false',
+            },
+        )
+    except duckdb.Error as error:
+        raise AnalysisUnavailableError(
+            'Banco do workspace incompatível.'
+        ) from error
+    finished = Event()
+    elapsed: float | None = None
+
+    def elapsed_seconds() -> float:
+        nonlocal elapsed
+        if elapsed is None:
+            elapsed = time.monotonic() - started
+        return elapsed
+
+    def interrupt() -> None:
+        interrupted.set()
+        while not finished.is_set():
+            connection.interrupt()
+            finished.wait(0.01)
+
+    timer = Timer(seconds, interrupt)
+    timer.daemon = True
+    timer.start()
+    try:
+        yield connection, elapsed_seconds
+        if interrupted.is_set() or elapsed_seconds() >= seconds:
+            raise AnalysisTimeoutError(
+                'O tempo limite da análise foi excedido.'
+            )
+    except duckdb.InterruptException as error:
+        raise AnalysisTimeoutError(
+            'O tempo limite da análise foi excedido.'
+        ) from error
+    except duckdb.Error as error:
+        raise AnalysisError(
+            'Falha controlada ao consultar o workspace.'
+        ) from error
+    finally:
+        finished.set()
+        timer.cancel()
+        timer.join()
+        connection.close()
+
+
+def get_workspace_profile(database_path: Path) -> WorkspaceProfile:
+    """Read only workspace metadata under the catalog's query deadline."""
+    seconds = float(load_analysis_catalog().runtime.timeout_seconds)
+    with _read_workspace(database_path, seconds) as (connection, _elapsed):
+        return _metadata(connection)
 
 
 def validate_analysis_parameters(
@@ -298,7 +376,7 @@ def _field_schema(
 def _availability(
     connection: duckdb.DuckDBPyConnection,
     definition: AnalysisDefinition,
-    metadata: _WorkspaceMetadata,
+    metadata: WorkspaceProfile,
 ) -> None:
     availability = definition.availability
     _schema(
@@ -669,6 +747,45 @@ def _scope_limitations(
     return ()
 
 
+def inspect_analysis_availability(
+    database_path: Path,
+    analysis_id: str,
+    parameters: Mapping[str, object] | None = None,
+    *,
+    catalog: AnalysisCatalog | None = None,
+) -> AvailabilityStatus:
+    """Inspect existing guards without executing the cataloged analysis SQL.
+
+    Invalid requests and unavailable data produce a status. Technical query
+    errors and deadlines propagate to keep them distinct from missing data.
+    """
+    catalog = catalog if catalog is not None else load_analysis_catalog()
+    if not isinstance(analysis_id, str) or analysis_id not in catalog.analyses:
+        return AvailabilityStatus(
+            False, 'Análise não pertence ao catálogo.', {}
+        )
+    definition = catalog.analyses[analysis_id]
+    _, seconds = validate_execution_limits(catalog, definition, None, None)
+    effective: dict[str, object] = {}
+    try:
+        with _read_workspace(database_path, seconds) as (connection, _elapsed):
+            profile = _metadata(connection)
+            try:
+                effective = validate_analysis_parameters(
+                    definition,
+                    parameters,
+                    period_start=profile.period_start,
+                    period_end=profile.period_end,
+                )
+            except AnalysisError as error:
+                return AvailabilityStatus(False, str(error), {})
+            _availability(connection, definition, profile)
+            _readiness(connection, analysis_id, definition, effective)
+        return AvailabilityStatus(True, None, effective)
+    except AnalysisUnavailableError as error:
+        return AvailabilityStatus(False, str(error), effective)
+
+
 def execute_analysis(
     database_path: Path,
     analysis_id: str,
@@ -685,37 +802,7 @@ def execute_analysis(
     limit, seconds = validate_execution_limits(
         catalog, definition, row_limit, timeout_seconds
     )
-    if not isinstance(database_path, Path) or not database_path.is_file():
-        raise AnalysisUnavailableError('Banco do workspace indisponível.')
-    started = time.monotonic()
-    interrupted = Event()
-    try:
-        connection = duckdb.connect(
-            str(database_path),
-            read_only=True,
-            config={
-                'enable_external_access': 'false',
-                'autoinstall_known_extensions': 'false',
-                'autoload_known_extensions': 'false',
-            },
-        )
-    except duckdb.Error as error:
-        raise AnalysisUnavailableError(
-            'Banco do workspace incompatível.'
-        ) from error
-    finished = Event()
-
-    def interrupt() -> None:
-        interrupted.set()
-        # Metadata and analysis queries share the same overall deadline.
-        while not finished.is_set():
-            connection.interrupt()
-            finished.wait(0.01)
-
-    timer = Timer(seconds, interrupt)
-    timer.daemon = True
-    timer.start()
-    try:
+    with _read_workspace(database_path, seconds) as (connection, elapsed_time):
         metadata = _metadata(connection)
         effective = validate_analysis_parameters(
             definition,
@@ -731,24 +818,7 @@ def execute_analysis(
         scope_limitations = _scope_limitations(
             connection, analysis_id, total_count
         )
-        elapsed = time.monotonic() - started
-        if interrupted.is_set() or elapsed >= seconds:
-            raise AnalysisTimeoutError(
-                'O tempo limite da análise foi excedido.'
-            )
-    except duckdb.InterruptException as error:
-        raise AnalysisTimeoutError(
-            'O tempo limite da análise foi excedido.'
-        ) from error
-    except duckdb.Error as error:
-        raise AnalysisError(
-            'Falha controlada ao consultar o workspace.'
-        ) from error
-    finally:
-        finished.set()
-        timer.cancel()
-        timer.join()
-        connection.close()
+        elapsed = elapsed_time()
     return AnalysisResult(
         run_id=uuid4().hex,
         analysis_id=analysis_id,

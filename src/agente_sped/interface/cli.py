@@ -28,6 +28,8 @@ def _json_value(value: object) -> str:
         return str(value)
     if isinstance(value, date):
         return value.isoformat()
+    if isinstance(value, Path):
+        return str(value)
     raise TypeError('Tipo de resultado não serializável.')
 
 
@@ -44,8 +46,8 @@ def _payload(
     return payload
 
 
-def _execute(arguments: argparse.Namespace) -> int:
-    parameters = {
+def _parameters(arguments: argparse.Namespace) -> dict[str, object]:
+    return {
         name: getattr(arguments, name)
         for name in (
             'start_date',
@@ -55,8 +57,12 @@ def _execute(arguments: argparse.Namespace) -> int:
             'max_gap_size',
             'min_item_value',
         )
-        if getattr(arguments, name) is not None
+        if getattr(arguments, name, None) is not None
     }
+
+
+def _execute(arguments: argparse.Namespace) -> int:
+    parameters = _parameters(arguments)
     try:
         if arguments.command == 'analyze':
             result = analyze_catalogued_file(
@@ -103,11 +109,15 @@ def _execute(arguments: argparse.Namespace) -> int:
     return 0
 
 
-def _analysis_arguments(parser: argparse.ArgumentParser) -> None:
+def _analysis_arguments(
+    parser: argparse.ArgumentParser,
+    *,
+    default_analysis: str | None = P1_ANALYSIS_ID,
+) -> None:
     parser.add_argument(
         '--analysis',
-        choices=load_analysis_catalog().analysis_ids,
-        default=P1_ANALYSIS_ID,
+        default=default_analysis,
+        help='ID catalogado; seleção explícita confirma seus critérios.',
     )
     parser.add_argument('--workspace', type=Path, required=True)
     parser.add_argument('--start-date')
@@ -123,6 +133,83 @@ def _analysis_arguments(parser: argparse.ArgumentParser) -> None:
         action='store_true',
         help='Exibe explicitamente as colunas sensíveis do resultado local.',
     )
+
+
+def _saved_report_payload(
+    workspace: Path, run_id: str, *, show_sensitive: bool
+) -> dict[str, object]:
+    from agente_sped.infra.report_store import load_report  # noqa: PLC0415
+
+    report = load_report(workspace, run_id)
+    payload = asdict(report)
+    if not show_sensitive:
+        for row in payload['result']['rows']:
+            for name in report.sensitive_columns:
+                if row.get(name) is not None:
+                    row[name] = '***'
+    return payload
+
+
+def _workflow(arguments: argparse.Namespace, settings: Settings) -> int:
+    # Core commands need not import the optional orchestration stack.
+    from agente_sped.domain.routing import AnalysisRequest  # noqa: PLC0415
+    from agente_sped.orchestration.graph import (  # noqa: PLC0415
+        run_agent,
+        run_export,
+    )
+
+    try:
+        if arguments.command == 'report':
+            payload = _saved_report_payload(
+                arguments.workspace,
+                arguments.run_id,
+                show_sensitive=arguments.show_sensitive,
+            )
+            code = 0
+        else:
+            if arguments.command == 'export':
+                outcome = run_export(
+                    arguments.workspace,
+                    arguments.run_id,
+                    arguments.format,
+                    show_sensitive=arguments.show_sensitive,
+                )
+            else:
+                outcome = run_agent(
+                    arguments.workspace,
+                    AnalysisRequest(
+                        question=arguments.question,
+                        analysis_id=arguments.analysis,
+                        parameters=_parameters(arguments),
+                    ),
+                    settings=settings,
+                    row_limit=arguments.max_rows,
+                    timeout_seconds=arguments.timeout_seconds,
+                )
+            payload = asdict(outcome)
+            if outcome.state['status'] in ('completed', 'empty_result'):
+                payload['report'] = _saved_report_payload(
+                    arguments.workspace,
+                    outcome.state['run_id'],
+                    show_sensitive=arguments.show_sensitive,
+                )
+            code = (
+                2
+                if outcome.state['status']
+                in (
+                    'execution_error',
+                    'analysis_unavailable',
+                    'provider_failure',
+                )
+                else 0
+            )
+    except OSError, ValueError:
+        print('Solicitação ou resultado local indisponível.', file=sys.stderr)
+        return 2
+    print(
+        json.dumps(payload, ensure_ascii=False, indent=2, default=_json_value)
+    )
+    return code
 
 
 def _positive_mib(value: str) -> int:
@@ -165,10 +252,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         'run', help='Executa uma análise reutilizando um workspace existente.'
     )
     _analysis_arguments(run)
+    ask = commands.add_parser(
+        'ask', help='Orquestra uma pergunta ou seleção e salva seu relatório.'
+    )
+    ask.add_argument('question', nargs='?')
+    _analysis_arguments(ask, default_analysis=None)
+    for name, help_text in (
+        ('report', 'Reabre um relatório salvo, sem executar a análise.'),
+        ('export', 'Exporta somente as linhas de um relatório salvo.'),
+    ):
+        command = commands.add_parser(name, help=help_text)
+        command.add_argument('--workspace', type=Path, required=True)
+        command.add_argument('--run-id', required=True)
+        command.add_argument('--show-sensitive', action='store_true')
+        if name == 'export':
+            command.add_argument(
+                '--format', choices=('csv', 'xlsx'), required=True
+            )
     arguments = parser.parse_args(argv)
 
     try:
-        Settings()
+        settings = Settings()
     except ValidationError as error:
         messages = (
             item['msg']
@@ -179,11 +283,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if arguments.command in ('analyze', 'run'):
         return _execute(arguments)
+    if arguments.command in ('ask', 'report', 'export'):
+        return _workflow(arguments, settings)
 
     print('Agente SPED Fiscal: instalação local disponível.')
     print(
         'Ingestão: analyze ARQUIVO --workspace DIRETÓRIO_NOVO. '
         'Nova consulta: run --workspace DIRETÓRIO --analysis ID. '
+        'Relatórios: ask --workspace DIRETÓRIO --analysis ID. '
         'A interface gráfica permanece indisponível.'
     )
     return 0
