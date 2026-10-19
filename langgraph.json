@@ -1,0 +1,23 @@
+{
+  "python_version": "3.14",
+  "dependencies": ["."],
+  "graphs": {
+    "p1": "./devtools/studio.py:p1",
+    "clarification": "./devtools/studio.py:clarification",
+    "provider_failure": "./devtools/studio.py:provider_failure"
+  },
+  "env": {},
+  "http": {
+    "app": "./devtools/studio.py:app",
+    "disable_store": true,
+    "disable_mcp": true,
+    "disable_a2a": true,
+    "disable_webhooks": true,
+    "cors": {
+      "allow_origins": ["https://smith.langchain.com"],
+      "allow_methods": ["GET", "POST", "OPTIONS"],
+      "allow_headers": ["*"],
+      "expose_headers": ["x-pagination-total", "x-pagination-next", "content-location"]
+    }
+  }
+}

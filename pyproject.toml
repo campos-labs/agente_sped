@@ -31,6 +31,9 @@ dev = [
     "pytest>=9.0.3,<10.0.0",
     "ruff>=0.15.16,<0.16.0",
 ]
+studio = [
+    "langgraph-cli[inmem]==0.4.37",
+]
 
 [tool.ruff]
 target-version = "py314"
