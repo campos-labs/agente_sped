@@ -6,7 +6,8 @@ import re
 import socket
 import sys
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from contextlib import asynccontextmanager
+from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -68,7 +69,7 @@ class DemoRequests(BaseHTTPMiddleware):
                     raise ValueError
                 return await call_next(request)
             match = _RUN_PATH.fullmatch(path)
-            if match is None or not _new_run(body):
+            if match is None or not _new_run(body, match.group(1)):
                 raise ValueError
             if thread_id := match.group(1):
                 if thread_id in self.used_threads:
@@ -80,10 +81,11 @@ class DemoRequests(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-def _new_run(body: dict[str, object]) -> bool:
+def _new_run(body: dict[str, object], thread_id: str | None) -> bool:
     config = body.get('config') or {}
     if not isinstance(config, dict):
         return False
+    configurable = config.get('configurable') or {}
     return (
         body.get('input') == _INITIAL
         and body.get('langsmith_tracing') in (None, False)
@@ -100,7 +102,9 @@ def _new_run(body: dict[str, object]) -> bool:
                 'context',
             )
         )
-        and not config.get('configurable')
+        and isinstance(configurable, dict)
+        and set(configurable) <= {'thread_id'}
+        and configurable.get('thread_id') in (None, thread_id)
         and set(config) <= {'configurable', 'tags', 'recursion_limit'}
     )
 
@@ -145,22 +149,9 @@ async def _graph(
         yield _build_graph(execution)
 
 
-def p1(
-    runtime: ServerRuntime,
-) -> AbstractAsyncContextManager[CompiledStateGraph]:
-    return _graph('p1', runtime)
-
-
-def clarification(
-    runtime: ServerRuntime,
-) -> AbstractAsyncContextManager[CompiledStateGraph]:
-    return _graph('clarification', runtime)
-
-
-def provider_failure(
-    runtime: ServerRuntime,
-) -> AbstractAsyncContextManager[CompiledStateGraph]:
-    return _graph('provider_failure', runtime)
+p1 = partial(_graph, 'p1')
+clarification = partial(_graph, 'clarification')
+provider_failure = partial(_graph, 'provider_failure')
 
 
 def _private_environment() -> None:

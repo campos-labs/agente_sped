@@ -69,13 +69,22 @@ def test_unsupported_run_never_reaches_server(demo_client, change):
 def test_only_new_threads_and_no_state_edits(demo_client):
     body = {'input': {'action': 'analysis', 'status': 'pending'}}
     path = '/threads/first/runs/stream'
-    assert demo_client.post(path, json=body).status_code == HTTPStatus.OK
+    studio_body = {**body, 'config': {'configurable': {'thread_id': 'first'}}}
+    assert (
+        demo_client.post(path, json=studio_body).status_code == HTTPStatus.OK
+    )
     assert (
         demo_client.post(path, json=body).status_code == HTTPStatus.FORBIDDEN
     )
     assert (
         demo_client.post('/threads/second/runs/stream', json=body).status_code
         == HTTPStatus.OK
+    )
+    assert (
+        demo_client.post(
+            '/threads/third/runs/stream', json=studio_body
+        ).status_code
+        == HTTPStatus.FORBIDDEN
     )
     for path in ('/threads/first/state', '/threads/first/copy', '/runs/batch'):
         assert (

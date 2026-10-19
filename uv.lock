@@ -23,9 +23,7 @@ dev = [
     { name = "ruff" },
 ]
 studio = [
-    { name = "langgraph-api" },
     { name = "langgraph-cli", extra = ["inmem"] },
-    { name = "langgraph-runtime-inmem" },
 ]
 
 [package.metadata]
@@ -45,11 +43,7 @@ dev = [
     { name = "pytest", specifier = ">=9.0.3,<10.0.0" },
     { name = "ruff", specifier = ">=0.15.16,<0.16.0" },
 ]
-studio = [
-    { name = "langgraph-api", specifier = "==0.16.1" },
-    { name = "langgraph-cli", extras = ["inmem"], specifier = "==0.4.37" },
-    { name = "langgraph-runtime-inmem", specifier = "==0.36.1" },
-]
+studio = [{ name = "langgraph-cli", extras = ["inmem"], specifier = "==0.4.37" }]
 
 [[package]]
 name = "annotated-types"

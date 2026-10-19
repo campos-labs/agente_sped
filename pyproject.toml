@@ -33,8 +33,6 @@ dev = [
 ]
 studio = [
     "langgraph-cli[inmem]==0.4.37",
-    "langgraph-api==0.16.1",
-    "langgraph-runtime-inmem==0.36.1",
 ]
 
 [tool.ruff]
