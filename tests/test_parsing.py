@@ -17,7 +17,6 @@ from agente_sped.application.parsing import (
 )
 from agente_sped.domain.layout import LayoutCatalog
 from agente_sped.infra.layout_catalog import (
-    build_layout_catalog,
     load_layout_catalog,
 )
 from agente_sped.infra.workspace import materialize_workspace
@@ -41,15 +40,8 @@ _EXPECTED_PARENTS = {
 
 
 @pytest.fixture(scope='module')
-def compiled_catalog(tmp_path_factory):
-    path = tmp_path_factory.mktemp('parsing-layout') / 'layout.duckdb'
-    build_layout_catalog(path)
-    return path
-
-
-@pytest.fixture(scope='module')
-def layout(compiled_catalog):
-    return load_layout_catalog(compiled_catalog)
+def layout(compiled_layout_catalog_path: Path) -> LayoutCatalog:
+    return load_layout_catalog(compiled_layout_catalog_path)
 
 
 def _line(
@@ -299,17 +291,20 @@ def test_c190_after_wrong_parent_is_anomaly(tmp_path, layout):
 
 
 def test_workspace_retains_source_catalog_and_exact_decimal(
-    tmp_path, layout, compiled_catalog
+    tmp_path, layout, compiled_layout_catalog_path
 ):
     source = _source(tmp_path, layout, _movement(layout))
     parsed = parse_sped(source, layout, 'stable-id')
     destination = tmp_path / 'workspace'
     workspace = materialize_workspace(
-        parsed, layout, destination, layout_catalog_path=compiled_catalog
+        parsed,
+        layout,
+        destination,
+        layout_catalog_path=compiled_layout_catalog_path,
     )
     assert (destination / 'source.txt').read_bytes() == source.read_bytes()
     assert (destination / 'layout_catalog.duckdb').read_bytes() == (
-        compiled_catalog.read_bytes()
+        compiled_layout_catalog_path.read_bytes()
     )
     connection = duckdb.connect(str(workspace.database_path), read_only=True)
     try:
