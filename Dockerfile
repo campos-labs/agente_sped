@@ -1,43 +1,32 @@
-FROM python:3.14.3-slim AS builder
+FROM python:3.14-slim AS builder
 
-# Configura variáveis de ambiente do Poetry
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1 \
-    POETRY_VIRTUALENVS_CREATE=1 \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
+COPY --from=ghcr.io/astral-sh/uv:0.12.7 /uv /bin/uv
 
-# Instala o Poetry diretamente (sem precisar de pacotes de sistema adicionais)
-RUN pip install --no-cache-dir poetry==2.3.2
+ENV UV_PYTHON_DOWNLOADS=0 \
+    UV_LINK_MODE=copy
 
 WORKDIR /app
 
-# Copia os arquivos de dependências
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock README.md LICENSE ./
+COPY src/ src/
 
-# Instala as dependências (Vai baixar os binários WHEEL prontos instantaneamente)
-RUN poetry install --only main --no-root && rm -rf $POETRY_CACHE_DIR
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-editable
 
-# ==========================================
-# Estágio 2: Runtime (Imagem Final Limpa e Rápida)
-# ==========================================
-FROM python:3.14.3-slim AS runtime
-
-WORKDIR /app
+FROM python:3.14-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH="/app"
+    PATH="/app/.venv/bin:$PATH"
 
-# Copia o ambiente virtual pronto do estágio anterior
+WORKDIR /app
+
+RUN groupadd --gid 10001 agente-sped && \
+    useradd --uid 10001 --gid agente-sped --create-home \
+    --shell /usr/sbin/nologin agente-sped
+
 COPY --from=builder /app/.venv /app/.venv
-COPY agente_sped/ /app/agente_sped/
-COPY data/ /app/data/
 
-# Cria o usuário de segurança no padrão Debian/Ubuntu (usando useradd)
-RUN useradd -u 1000 speduser && \
-    chown -R speduser:speduser /app
-USER speduser
+USER agente-sped
 
-ENV PATH="/app/.venv/bin:$PATH"
-
-CMD ["python", "-m", "agente_sped.main"]
+CMD ["python", "-m", "agente_sped"]

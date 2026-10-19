@@ -3,10 +3,4 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: agente-sped:latest
-    env_file:
-      - .env
-    volumes:
-      - ./data:/app/data
-    stdin_open: true   # equivalente ao -i do docker run
-    tty: true          # equivalente ao -t do docker run
+    image: agente-sped:local
