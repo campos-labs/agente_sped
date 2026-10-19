@@ -29,8 +29,20 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pytest>=9.0.3,<10.0.0",
+    "pytest-cov>=7.1,<8",
     "ruff>=0.15.16,<0.16.0",
 ]
+
+[tool.pytest]
+minversion = "9.0"
+testpaths = ["tests"]
+addopts = ["-ra"]
+
+[tool.coverage.run]
+source = ["agente_sped"]
+
+[tool.coverage.report]
+show_missing = true
 
 [tool.ruff]
 target-version = "py314"
