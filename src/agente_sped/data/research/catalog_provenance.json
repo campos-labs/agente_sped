@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "research_snapshot": {
+    "repository": "https://github.com/campos-labs/project-hub",
+    "commit": "8ec26d42a0caa2b13134bf94811d1d4b8962ee40",
+    "catalog_path": "docs/rfcs/_archive/004-agente_sped/research/data/analysis_catalog.yml",
+    "fixture_path": "docs/rfcs/_archive/004-agente_sped/research/data/sped_icms_analysis_reference.txt"
+  },
+  "original_catalog": {
+    "path": "src/agente_sped/data/research/analysis_catalog.original.yml",
+    "catalog_version": "1.0.0",
+    "sha256": "66a0a2fa7c8d2e7866b4a5b230910fd441cdb3be5cdcbdcacbad51dd3e31b7fa",
+    "byte_length": 41834,
+    "policy": "Snapshot histórico byte a byte, com regras e gabaritos originais; não é o catálogo executável."
+  },
+  "operational_catalog": {
+    "path": "src/agente_sped/data/analysis_catalog.yml",
+    "catalog_version": "1.1.1",
+    "sha256": "6fba16be9170adea5a2e1a4bfbe76be27beb233ca4d251e3e3a1a715e8fe540f",
+    "byte_length": 43724
+  },
+  "original_fixture": {
+    "path": "tests/fixtures/sped_icms_analysis_reference.txt",
+    "sha256": "a80d8ea3271be3a735e3b14f2af0914408556e8647a2728128dea4929f892307",
+    "byte_length": 9214,
+    "policy": "Fixture sintética histórica intocada. COD_SIT 04/05 em janeiro de 2026 permanecem anomalias rastreáveis; sua presença não afirma validade fiscal."
+  },
+  "sources": {
+    "guia_3_2_4": {
+      "title": "Guia Prático EFD ICMS/IPI versão 3.2.4, 30/07/2026",
+      "url": "https://www.gov.br/sped/pt-br/assuntos/escrituracoes-digitais/efd-icms-ipi/manuais-e-documentos-tecnicos/guia-pratico-efd-versao-3-2-4.pdf/@@display-file/file",
+      "consulted_on": "2026-10-13",
+      "pages": {
+        "c100_exception_1": [
+          63
+        ],
+        "document_status_codes": [
+          347
+        ]
+      }
+    }
+  },
+  "approved_changes": [
+    {
+      "analysis_id": "cancelled_documents",
+      "version": "1.1.0",
+      "changes": [
+        "Filtra somente saídas COD_SIT 02/03. Título, descrição, frases de roteamento, critérios, narrativa, limitações e rótulos das sugestões passam a representar cancelamentos.",
+        "Gabarito operacional passa de 6 documentos [2001,2002,2003,2004,6002,7002] para 4 [2001,2002,6002,7002]. O gabarito histórico permanece no snapshot original.",
+        "Remove o filtro SQL por DT_DOC e admite campos vazios previstos na exceção de C100 cancelado, sem completar data, participante ou valor."
+      ]
+    },
+    {
+      "analysis_id": "document_sequence_gaps",
+      "version": "1.1.0",
+      "changes": [
+        "Mantém 00/01/02/03/04/05 como números observados na fonte, independentemente da validade da situação. COD_SIT 04/05 em 2026 são explicitados como anomalias.",
+        "Remove o filtro SQL por DT_DOC. Não exige uma data de documento para considerar um número presente.",
+        "Gabarito da fixture histórica permanece com três lacunas: A5003, C7003, D8002."
+      ]
+    },
+    {
+      "analysis_ids": [
+        "cancelled_documents",
+        "document_sequence_gaps"
+      ],
+      "changes": [
+        "execution.period_scope=file: o escopo é exclusivamente o período integral da escrituração (DT_INI/DT_FIN do 0000). start_date/end_date continuam declarados e derivados do perfil; qualquer subperíodo deve ser recusado pelo executor.",
+        "P1, P4, P7 e P8 mantêm SQL e versão 1.0.0. P3 e P5 mantêm SQL original, com versão contratual 1.1.0 pelas limitações aprovadas.",
+        "P1, P3, P4, P5, P7 e P8 mantêm period_scope=document por default."
+      ]
+    },
+    {
+      "analysis_id": "block_k_activity",
+      "version": "1.1.0",
+      "changes": [
+        "SQL e gabarito histórico permanecem idênticos. Considera somente K230 com DT_INI_OP preenchida e dentro do intervalo solicitado.",
+        "K230 sem DT_INI_OP são excluídos do filtro por data. O executor informa sua quantidade no arquivo inteiro, sem atribuí-los ao período.",
+        "Quando não há K230 datado elegível e existem registros sem data, o estado continua empty_result acompanhado de limitação que explicita a impossibilidade de concluir ausência de atividade no período. A mensagem vazia e a narrativa não afirmam ausência de atividade.",
+        "Não infere DT_INI_OP a partir de K100 ou de outras datas."
+      ]
+    },
+    {
+      "analysis_id": "possible_duplicate_documents",
+      "version": "1.1.0",
+      "changes": [
+        "SQL e gabarito histórico permanecem idênticos. Segue o filtro original por DT_DOC, que exclui C100 sem data documental.",
+        "A ausência global de DT_DOC não bloqueia a análise dos registros datados. O executor informa, nas limitações, a quantidade de C100 sem DT_DOC excluídos no arquivo inteiro, sem atribuição ao período."
+      ]
+    },
+    {
+      "analysis_id": "document_sequence_gaps",
+      "version": "1.1.1",
+      "previous_version": "1.1.0",
+      "review_comment_id": 4254888606,
+      "changes": [
+        "Remove DT_DOC de availability.required_fields de C100: P6 considera o período integral do arquivo e seu SQL não usa a data do documento.",
+        "Um invalid_date em C100.DT_DOC permanece preservado como erro de campo no workspace e não bloqueia P6 por uma dependência irrelevante. As demais análises mantêm seus próprios contratos de disponibilidade.",
+        "SQL e gabaritos permanecem idênticos; catálogo operacional passa a 1.1.1, somente P6 passa a 1.1.1, e o snapshot histórico permanece intocado."
+      ]
+    }
+  ],
+  "minimal_cancelled_fixture": {
+    "path": "tests/fixtures/cancelled_document_minimal.txt",
+    "sha256": "5801c30b65e982553a25616e7223842be8748b94cb4c8b4f8b376f8c1381d9ac",
+    "scope": "Caso mínimo da exceção de preenchimento do registro C100; não é um arquivo EFD completo nem uma promessa de validação pelo PVA.",
+    "record_codes": [
+      "0000",
+      "C001",
+      "C100"
+    ],
+    "c100_cod_sit": "02",
+    "filled_fields": {
+      "1": "REG",
+      "2": "IND_OPER",
+      "3": "IND_EMIT",
+      "5": "COD_MOD",
+      "6": "COD_SIT",
+      "7": "SER",
+      "8": "NUM_DOC",
+      "9": "CHV_NFE"
+    },
+    "other_c100_fields": "Vazios, incluindo COD_PART, DT_DOC, DT_E_S e VL_DOC.",
+    "child_records": [],
+    "source_id": "guia_3_2_4",
+    "source_pages": [
+      63
+    ],
+    "encoding": "ASCII compatível com Latin-1, linhas CRLF"
+  }
+}

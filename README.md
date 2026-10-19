@@ -1,23 +1,34 @@
 # Agente SPED Fiscal
 
-Projeto de análises locais e rastreáveis de EFD ICMS/IPI, em etapa de fundação técnica da v1.0.
+Análises locais e rastreáveis de EFD ICMS/IPI com `COD_VER=020`.
 
 ## Disponível nesta etapa
 
-Pacote Python instalável, configuração sem credenciais obrigatórias e imagem Docker. O comando `agente-sped` verifica a configuração e informa o estágio disponível.
+Parser orientado ao leiaute, catálogo versionado de oito análises e workspace DuckDB local, sem credenciais obrigatórias. A CLI cria um workspace com `analyze` e o reutiliza com `run`.
 
-Parser, catálogo de análises, orquestração LangGraph, relatórios, exportações e interface serão entregues nas próximas FEATs. O programa ainda não processa arquivos fiscais. A arquitetura-alvo está em [DESIGN.md](DESIGN.md).
+A cobertura do leiaute é parcial e não substitui a validação pelo PVA. LangGraph, Gemini, relatórios, exportações e interface pertencem aos próximos incrementos. A arquitetura-alvo está em [DESIGN.md](DESIGN.md).
 
 ## Executar localmente
 
-Com Docker e Docker Compose disponíveis, na raiz do repositório:
+Com Python 3.14 e uv, na raiz do repositório:
+
+```bash
+uv sync --locked
+mkdir workspaces
+uv run --locked agente-sped analyze tests/fixtures/sped_icms_analysis_reference.txt --workspace workspaces/exemplo --analysis movement_by_cfop
+uv run --locked agente-sped run --workspace workspaces/exemplo --analysis cancelled_documents
+```
+
+Crie `workspaces` uma vez e escolha um destino novo para cada ingestão. Após uma falha de consulta, o workspace permanece disponível para `run`. Os resultados são mascarados por padrão; `--show-sensitive` exibe explicitamente as colunas sensíveis.
+
+Para construir a imagem Docker e consultar os comandos disponíveis:
 
 ```bash
 docker compose build
-docker compose run --rm agente-sped
+docker compose run --rm agente-sped python -m agente_sped --help
 ```
 
-O contêiner informa que a fundação está instalada e encerra. Esta etapa não inicia servidor HTTP, não publica portas e não requer `.env` ou API key.
+O processamento dispensa `.env` e API key. A imagem não inicia servidor HTTP nem publica portas; arquivos e workspaces usados no contêiner precisam de volumes locais.
 
 ## Configuração
 
@@ -33,14 +44,14 @@ Use Python 3.14 e uv. Na raiz do repositório:
 
 ```bash
 uv sync --locked
-uv run --locked agente-sped
 uv run --locked ruff check .
 uv run --locked ruff format --check .
+uv run --locked pytest -q
 ```
 
 `uv run --locked python -m agente_sped` executa o mesmo ponto de entrada. `agente-sped --help` e `agente-sped --version` estão disponíveis no ambiente instalado.
 
-O código fica em `src/agente_sped`: `interface` contém a CLI e `infra` contém a configuração. As demais responsabilidades serão introduzidas conforme os incrementos. A suíte pytest e a CI serão entregues pelas Issues [#2](https://github.com/campos-labs/agente_sped/issues/2) e [#3](https://github.com/campos-labs/agente_sped/issues/3).
+O código fica em `src/agente_sped`, dividido entre `domain`, `application`, `infra` e `interface`. A suíte inclui fixtures sintéticas e regressões das oito análises; configuração compartilhada e CI seguem nas Issues [#2](https://github.com/campos-labs/agente_sped/issues/2) e [#3](https://github.com/campos-labs/agente_sped/issues/3).
 
 Os comandos e dependências estão em [pyproject.toml](pyproject.toml); as orientações para agentes, em [AGENTS.md](AGENTS.md).
 

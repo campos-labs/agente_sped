@@ -1,0 +1,667 @@
+{
+  "schema_version": 1,
+  "obligation": "EFD_ICMS_IPI",
+  "layout_version": "020",
+  "source": {
+    "repository": "https://github.com/campos-labs/project-hub",
+    "commit": "8ec26d42a0caa2b13134bf94811d1d4b8962ee40",
+    "path": "docs/rfcs/_archive/004-agente_sped/research/data/sped_layout_fields.csv",
+    "sha256": "63ab6b2bcedcbf698c3e29889aee537590f16d9e04a68e4796d9733b1d5ede93",
+    "encoding": "utf-8-sig",
+    "byte_length": 1228682,
+    "origin_status": "CSV legado da pesquisa; derivação declarada pelo PR 15 não foi reproduzida. Nenhum instalador, JAR ou XML do PVA integra esta entrega."
+  },
+  "sources": {
+    "nt_2025_001_020": {
+      "title": "Nota Técnica 2025.001 v1.0 - leiaute 020, válido a partir de 01/01/2026",
+      "url": "https://www.confaz.fazenda.gov.br/legislacao/arquivo-manuais/06___anexo_2.pdf/@@download/file/06___ANEXO_2.pdf",
+      "layout_effective_from": "2026-01-01"
+    },
+    "guia_3_2_4": {
+      "title": "Guia Prático EFD ICMS/IPI versão 3.2.4, 30/07/2026",
+      "url": "https://www.gov.br/sped/pt-br/assuntos/escrituracoes-digitais/efd-icms-ipi/manuais-e-documentos-tecnicos/guia-pratico-efd-versao-3-2-4.pdf/@@display-file/file",
+      "notes": "A edição reúne mudanças de vigências distintas; o changelog p.366 atribui CNPJ/chaves N→C à versão 3.2.3 desde o leiaute 2026. COD_SIT 09/10 só entram em 01/01/2027, conforme exceção 12 do C100 p.64."
+    }
+  },
+  "transformations": {
+    "implicit_reg": "O CSV omite REG, posição 1. O builder o explicita como string, sem deslocar posições originais. REG é verificado somente nos onze registros com estrutura verificada.",
+    "aliases": "Nomes em minúsculas; nomes originais repetidos recebem __pNNN em todas as posições do grupo. O nome original ambíguo é recusado. Colisões de posições ou aliases são erros.",
+    "unverified_fields": "Todos os campos fora da cobertura explícita permanecem string e verified=false. float no CSV é metadado legado; nunca determina float Python.",
+    "unverified_records": "Níveis dos demais registros são preservados como evidência legada, sem confirmação de estrutura 020. E310 não foi reconciliado nem tipado.",
+    "source_counts": {
+      "efd_icms_ipi_records": 269,
+      "efd_icms_ipi_explicit_fields": 1869
+    },
+    "known_source_gap": "NT 2025.001 p.57 omite a linha C100 posição 16. VL_MERC posição 16 é confirmado pelo Guia 3.2.4 p.65; não se renumeram os campos.",
+    "verified_scope": "verified confirma posição, nome e tipagem de aplicação dos campos indicados, e nível dos onze registros cobertos. Não afirma validação fiscal completa, obrigatoriedade, domínio de valores nem conformidade PVA. Campos de código oficialmente N permanecem string; valores quantitativos confirmados usam decimal, nunca float Python. A ampliação para as oito análises cobre somente onze campos adicionais em C170, 0200, 0150 e K230, seus REG e os REG dos ancestrais 0001, K001 e K100. Datas do período K100 e os demais campos desses registros permanecem brutos fora da cobertura explícita."
+  },
+  "verified_records": {
+    "0000": {
+      "level": 0,
+      "fields": {
+        "1": {
+          "original_name": "REG",
+          "value_type": "string",
+          "decimals": null
+        },
+        "2": {
+          "original_name": "COD_VER",
+          "value_type": "string",
+          "decimals": null
+        },
+        "4": {
+          "original_name": "DT_INI",
+          "value_type": "date",
+          "decimals": null
+        },
+        "5": {
+          "original_name": "DT_FIN",
+          "value_type": "date",
+          "decimals": null
+        },
+        "7": {
+          "original_name": "CNPJ",
+          "value_type": "string",
+          "decimals": null
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            45,
+            46
+          ]
+        },
+        {
+          "source_id": "guia_3_2_4",
+          "pages": [
+            29,
+            30
+          ]
+        }
+      ]
+    },
+    "C001": {
+      "level": 1,
+      "fields": {
+        "1": {
+          "original_name": "REG",
+          "value_type": "string",
+          "decimals": null
+        },
+        "2": {
+          "original_name": "IND_MOV",
+          "value_type": "string",
+          "decimals": null
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            56,
+            57
+          ]
+        },
+        {
+          "source_id": "guia_3_2_4",
+          "pages": [
+            62
+          ]
+        }
+      ]
+    },
+    "C100": {
+      "level": 2,
+      "fields": {
+        "1": {
+          "original_name": "REG",
+          "value_type": "string",
+          "decimals": null
+        },
+        "2": {
+          "original_name": "IND_OPER",
+          "value_type": "string",
+          "decimals": null
+        },
+        "3": {
+          "original_name": "IND_EMIT",
+          "value_type": "string",
+          "decimals": null
+        },
+        "4": {
+          "original_name": "COD_PART",
+          "value_type": "string",
+          "decimals": null
+        },
+        "5": {
+          "original_name": "COD_MOD",
+          "value_type": "string",
+          "decimals": null
+        },
+        "6": {
+          "original_name": "COD_SIT",
+          "value_type": "string",
+          "decimals": null
+        },
+        "7": {
+          "original_name": "SER",
+          "value_type": "string",
+          "decimals": null
+        },
+        "8": {
+          "original_name": "NUM_DOC",
+          "value_type": "string",
+          "decimals": null
+        },
+        "9": {
+          "original_name": "CHV_NFE",
+          "value_type": "string",
+          "decimals": null
+        },
+        "10": {
+          "original_name": "DT_DOC",
+          "value_type": "date",
+          "decimals": null
+        },
+        "11": {
+          "original_name": "DT_E_S",
+          "value_type": "date",
+          "decimals": null
+        },
+        "12": {
+          "original_name": "VL_DOC",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "13": {
+          "original_name": "IND_PGTO",
+          "value_type": "string",
+          "decimals": null
+        },
+        "14": {
+          "original_name": "VL_DESC",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "15": {
+          "original_name": "VL_ABAT_NT",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "16": {
+          "original_name": "VL_MERC",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "17": {
+          "original_name": "IND_FRT",
+          "value_type": "string",
+          "decimals": null
+        },
+        "18": {
+          "original_name": "VL_FRT",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "19": {
+          "original_name": "VL_SEG",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "20": {
+          "original_name": "VL_OUT_DA",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "21": {
+          "original_name": "VL_BC_ICMS",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "22": {
+          "original_name": "VL_ICMS",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "23": {
+          "original_name": "VL_BC_ICMS_ST",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "24": {
+          "original_name": "VL_ICMS_ST",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "25": {
+          "original_name": "VL_IPI",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "26": {
+          "original_name": "VL_PIS",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "27": {
+          "original_name": "VL_COFINS",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "28": {
+          "original_name": "VL_PIS_ST",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "29": {
+          "original_name": "VL_COFINS_ST",
+          "value_type": "decimal",
+          "decimals": 2
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            57,
+            58
+          ]
+        },
+        {
+          "source_id": "guia_3_2_4",
+          "pages": [
+            64,
+            65,
+            66,
+            67
+          ]
+        }
+      ]
+    },
+    "C190": {
+      "level": 3,
+      "fields": {
+        "1": {
+          "original_name": "REG",
+          "value_type": "string",
+          "decimals": null
+        },
+        "2": {
+          "original_name": "CST_ICMS",
+          "value_type": "string",
+          "decimals": null
+        },
+        "3": {
+          "original_name": "CFOP",
+          "value_type": "string",
+          "decimals": null
+        },
+        "4": {
+          "original_name": "ALIQ_ICMS",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "5": {
+          "original_name": "VL_OPR",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "6": {
+          "original_name": "VL_BC_ICMS",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "7": {
+          "original_name": "VL_ICMS",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "8": {
+          "original_name": "VL_BC_ICMS_ST",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "9": {
+          "original_name": "VL_ICMS_ST",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "10": {
+          "original_name": "VL_RED_BC",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "11": {
+          "original_name": "VL_IPI",
+          "value_type": "decimal",
+          "decimals": 2
+        },
+        "12": {
+          "original_name": "COD_OBS",
+          "value_type": "string",
+          "decimals": null
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            69,
+            70
+          ]
+        },
+        {
+          "source_id": "guia_3_2_4",
+          "pages": [
+            106,
+            107
+          ]
+        }
+      ]
+    },
+    "0001": {
+      "level": 1,
+      "fields": {
+        "1": {
+          "original_name": "REG",
+          "value_type": "string",
+          "decimals": null
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            46
+          ]
+        }
+      ]
+    },
+    "0150": {
+      "level": 2,
+      "fields": {
+        "1": {
+          "original_name": "REG",
+          "value_type": "string",
+          "decimals": null
+        },
+        "2": {
+          "original_name": "COD_PART",
+          "value_type": "string",
+          "decimals": null
+        },
+        "3": {
+          "original_name": "NOME",
+          "value_type": "string",
+          "decimals": null
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            47
+          ]
+        }
+      ]
+    },
+    "0200": {
+      "level": 2,
+      "fields": {
+        "1": {
+          "original_name": "REG",
+          "value_type": "string",
+          "decimals": null
+        },
+        "2": {
+          "original_name": "COD_ITEM",
+          "value_type": "string",
+          "decimals": null
+        },
+        "3": {
+          "original_name": "DESCR_ITEM",
+          "value_type": "string",
+          "decimals": null
+        },
+        "8": {
+          "original_name": "COD_NCM",
+          "value_type": "string",
+          "decimals": null
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            48
+          ]
+        }
+      ]
+    },
+    "C170": {
+      "level": 3,
+      "fields": {
+        "1": {
+          "original_name": "REG",
+          "value_type": "string",
+          "decimals": null
+        },
+        "3": {
+          "original_name": "COD_ITEM",
+          "value_type": "string",
+          "decimals": null
+        },
+        "7": {
+          "original_name": "VL_ITEM",
+          "value_type": "decimal",
+          "decimals": 2
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            62,
+            63
+          ]
+        }
+      ]
+    },
+    "K001": {
+      "level": 1,
+      "fields": {
+        "1": {
+          "original_name": "REG",
+          "value_type": "string",
+          "decimals": null
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            122
+          ]
+        }
+      ]
+    },
+    "K100": {
+      "level": 2,
+      "fields": {
+        "1": {
+          "original_name": "REG",
+          "value_type": "string",
+          "decimals": null
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            122
+          ]
+        }
+      ]
+    },
+    "K230": {
+      "level": 3,
+      "fields": {
+        "1": {
+          "original_name": "REG",
+          "value_type": "string",
+          "decimals": null
+        },
+        "2": {
+          "original_name": "DT_INI_OP",
+          "value_type": "date",
+          "decimals": null
+        },
+        "4": {
+          "original_name": "COD_DOC_OP",
+          "value_type": "string",
+          "decimals": null
+        },
+        "5": {
+          "original_name": "COD_ITEM",
+          "value_type": "string",
+          "decimals": null
+        },
+        "6": {
+          "original_name": "QTD_ENC",
+          "value_type": "decimal",
+          "decimals": 6
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            123
+          ]
+        }
+      ]
+    }
+  },
+  "corrections": [
+    {
+      "record_code": "0000",
+      "position": 7,
+      "original_name": "CNPJ",
+      "changes": {
+        "spec_type": {
+          "from": "N",
+          "to": "C"
+        }
+      },
+      "sources": [
+        {
+          "source_id": "guia_3_2_4",
+          "pages": [
+            29,
+            366
+          ]
+        }
+      ],
+      "note": "O changelog atribui à versão 3.2.3 a alteração N para C a partir do leiaute 2026. A aplicação mantém identificadores como string."
+    },
+    {
+      "record_code": "0150",
+      "position": 5,
+      "original_name": "CNPJ",
+      "changes": {
+        "spec_type": {
+          "from": "N",
+          "to": "C"
+        }
+      },
+      "sources": [
+        {
+          "source_id": "guia_3_2_4",
+          "pages": [
+            34,
+            366
+          ]
+        }
+      ],
+      "note": "O changelog atribui à versão 3.2.3 a alteração N para C a partir do leiaute 2026. A aplicação mantém identificadores como string."
+    },
+    {
+      "record_code": "C100",
+      "position": 9,
+      "original_name": "CHV_NFE",
+      "changes": {
+        "spec_type": {
+          "from": "N",
+          "to": "C"
+        }
+      },
+      "sources": [
+        {
+          "source_id": "guia_3_2_4",
+          "pages": [
+            65,
+            366
+          ]
+        }
+      ],
+      "note": "O changelog atribui à versão 3.2.3 a alteração N para C a partir do leiaute 2026. A aplicação mantém identificadores como string."
+    },
+    {
+      "record_code": "C100",
+      "position": 13,
+      "original_name": "IND_PGTO",
+      "changes": {
+        "description": {
+          "from": "Indicador do tipo de pagamento: 0 - À vista; 1 - A prazo; 9 - Sem pagamento.",
+          "to": "Indicador do tipo de pagamento, a partir de 01/07/2012: 0 - À vista; 1 - A prazo; 2 - Outros."
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            57
+          ]
+        },
+        {
+          "source_id": "guia_3_2_4",
+          "pages": [
+            65,
+            67
+          ]
+        }
+      ],
+      "note": "A tabela do guia conserva a redação histórica com 9; a validação do campo no mesmo guia lista 0, 1, 2 e 9. Esta correção é descritiva e não implementa validação de valores."
+    },
+    {
+      "record_code": "C100",
+      "position": 17,
+      "original_name": "IND_FRT",
+      "changes": {
+        "description": {
+          "from": "Indicador do tipo do frete: 0 - Por conta de terceiros; 1 - Por conta do emitente; 2 - Por conta do destinatário; 9 - Sem cobrança de frete.",
+          "to": "Indicador do tipo do frete: 0 - Contratação por conta do remetente (CIF); 1 - Contratação por conta do destinatário (FOB); 2 - Contratação por conta de terceiros; 3 - Transporte próprio por conta do remetente; 4 - Transporte próprio por conta do destinatário; 9 - Sem ocorrência de transporte."
+        }
+      },
+      "sources": [
+        {
+          "source_id": "nt_2025_001_020",
+          "pages": [
+            57
+          ]
+        },
+        {
+          "source_id": "guia_3_2_4",
+          "pages": [
+            65,
+            67
+          ]
+        }
+      ],
+      "note": "Atualiza os significados posicionais do campo; não altera dados fiscais nem implementa uma regra PVA."
+    }
+  ],
+  "corrections_sha256": "59ec4a9895999d24bbe0c5f1f9d09ba1adbc416795cb52be7e24084270b04c05"
+}
