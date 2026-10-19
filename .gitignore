@@ -32,3 +32,7 @@ htmlcov/
 # Configuração local do editor
 .vscode/
 .idea/
+
+# Arquivos SPED de entrada (dados locais)
+/inputs/*
+!/inputs/.gitkeep
