@@ -23,10 +23,12 @@ WORKDIR /app
 
 RUN groupadd --gid 10001 agente-sped && \
     useradd --uid 10001 --gid agente-sped --create-home \
-    --shell /usr/sbin/nologin agente-sped
+    --shell /usr/sbin/nologin agente-sped && \
+    mkdir -p /home/agente-sped/sessions && \
+    chown agente-sped:agente-sped /home/agente-sped/sessions
 
 COPY --from=builder /app/.venv /app/.venv
 
 USER agente-sped
 
-CMD ["python", "-m", "agente_sped"]
+CMD ["agente-sped", "serve", "--host", "0.0.0.0", "--session-root", "/home/agente-sped/sessions"]

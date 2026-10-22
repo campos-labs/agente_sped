@@ -1,0 +1,116 @@
+{% from "forms.html" import tokens with context %}
+{% set busy = operation and operation.status == 'running' %}
+{% set chosen_analysis = catalog|selectattr('analysis_id', 'equalto', selection.analysis_id)|first|default(none) %}
+<section id="workspace" class="workspace" aria-label="Workspace fiscal"{% if busy %} hx-get="{{ status_url|default('/status') }}" hx-trigger="every 1s" hx-target="this" hx-swap="outerHTML" aria-busy="true"{% endif %}>
+  <aside class="interaction-panel" aria-label="Arquivo e análises">
+    <section class="panel file-panel" aria-labelledby="file-title">
+      <div class="section-heading"><span class="eyebrow">01 · Fonte</span><span class="badge">Local</span></div>
+      <h2 id="file-title">Arquivo da escrituração</h2>
+      {% if profile %}
+      <div class="loaded-file"><span class="file-symbol" aria-hidden="true">TXT</span><div><strong>{{ profile.filename }}</strong><small>Leiaute {{ profile.cod_ver }} · {{ profile.record_count }} registros</small></div></div>
+      <dl class="file-period"><div><dt>Período da escrituração</dt><dd>{{ profile.period_start|value }} a {{ profile.period_end|value }}</dd></div></dl>
+      <p class="help">O arquivo está disponível para as análises desta sessão.</p>
+      {% else %}
+      <form action="/upload" method="post" enctype="multipart/form-data" hx-post="/upload" hx-encoding="multipart/form-data" hx-target="#workspace" hx-swap="outerHTML">
+        {{ tokens() }}
+        <label class="upload-label" for="source-file"><span class="file-symbol" aria-hidden="true">TXT</span><strong>Selecione seu arquivo SPED</strong><span>EFD ICMS/IPI · Leiaute 020</span></label>
+        <input id="source-file" name="file" type="file" accept=".txt,text/plain" required{% if busy %} disabled{% endif %}>
+        <p class="help">Até 100 MiB. A leitura preserva os registros e a linha de origem.</p>
+        <button class="button primary full-width" type="submit"{% if busy %} disabled{% endif %}>Carregar escrituração</button>
+      </form>
+      {% endif %}
+      {% if can_clear %}<form action="/session/clear" method="post" hx-post="/session/clear" hx-target="#workspace" hx-swap="outerHTML" data-confirm="Limpar esta sessão? O arquivo, os resultados e as exportações locais serão removidos.">
+        {{ tokens() }}<button class="text-button danger" type="submit"{% if busy %} disabled{% endif %}>Limpar sessão e arquivo</button>
+      </form>{% endif %}
+    </section>
+
+    <section class="panel" aria-labelledby="question-title">
+      <div class="section-heading"><span class="eyebrow">02 · Investigar</span><span class="badge{% if ai_enabled %} accent{% endif %}">{{ 'IA opcional ativa' if ai_enabled else 'Modo determinístico' }}</span></div>
+      <h2 id="question-title">O que deseja investigar?</h2>
+      <form action="/ask" method="post" hx-post="/ask" hx-target="#workspace" hx-swap="outerHTML" autocomplete="off">
+        {{ tokens() }}
+        <label class="sr-only" for="question">Sua pergunta sobre a escrituração</label>
+        <textarea id="question" name="question" rows="3" maxlength="2048" placeholder="Ex.: quais CFOPs concentram as saídas?" required{% if not profile or busy %} disabled{% endif %}></textarea>
+        <button class="button primary full-width" type="submit"{% if not profile or busy %} disabled{% endif %}>Perguntar</button>
+      </form>
+      <div class="divider-label"><span>ou selecione uma análise</span></div>
+      <form action="/analyze" method="post" hx-post="/analyze" hx-target="#workspace" hx-swap="outerHTML" data-analysis-form>
+        {{ tokens() }}
+        <label for="analysis-id">Análise catalogada</label>
+        <select id="analysis-id" name="analysis_id" required{% if not profile or busy %} disabled{% endif %}>
+          <option value="">Escolha uma análise</option>
+          {% for analysis in catalog %}<option value="{{ analysis.analysis_id }}"{% if selection.analysis_id == analysis.analysis_id %} selected{% endif %}{% if analysis.available is defined and not analysis.available %} disabled{% endif %} data-period-scope="{{ analysis.period_scope|default('document') }}">{{ analysis.title }}{% if analysis.available is defined and not analysis.available %} · {{ analysis.availability_label|default('indisponível') }}{% endif %}</option>{% endfor %}
+        </select>
+        <div class="parameter-grid">
+          {% for field in parameter_fields|default([]) %}
+          {% set active = selection.analysis_id in field.analysis_ids %}
+          <div class="parameter-field" data-analyses="{{ field.analysis_ids|join(' ') }}" data-variants="{{ field.variants|tojson|forceescape }}"{% if not active %} hidden{% endif %}>
+            <label for="param-{{ field.name }}">{{ field.label }}</label>
+            <input id="param-{{ field.name }}" name="{{ field.name }}" type="{{ 'date' if field.type == 'date' else 'number' }}" value="{{ field.value }}"{% if field.min is defined and field.min is not none %} min="{{ field.min }}"{% endif %}{% if field.max is defined and field.max is not none %} max="{{ field.max }}"{% endif %}{% if field.type != 'date' %} step="{{ field.step|default('1' if field.type == 'integer' else '0.01') }}"{% endif %}{% if field.required %} required{% endif %}{% if not active or not profile or busy %} disabled{% endif %}>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="help" data-full-period{% if not chosen_analysis or chosen_analysis.period_scope != 'full_file' %} hidden{% endif %}>Esta análise considera o período integral da escrituração, inclusive documentos sem data.</p>
+        <button class="button secondary full-width" type="submit"{% if not profile or busy %} disabled{% endif %}>Executar análise selecionada</button>
+      </form>
+      <p class="help">As perguntas utilizam o catálogo. Cálculos e critérios são determinísticos.</p>
+      {% if profile %}{% set unavailable = catalog|selectattr('available', 'equalto', false)|list %}{% if unavailable %}<details class="availability"><summary>Por que há análises indisponíveis?</summary><ul>{% for analysis in unavailable %}<li><strong>{{ analysis.title }}:</strong> {{ analysis.unavailable_reason }}</li>{% endfor %}</ul></details>{% endif %}{% endif %}
+    </section>
+
+    {% if report and report.suggestions %}
+    <section class="panel suggestions" aria-labelledby="suggestions-title">
+      <span class="eyebrow">Próximos caminhos</span><h2 id="suggestions-title">Aprofundar a investigação</h2>
+      {% for suggestion in report.suggestions %}
+      <form action="/analyze" method="post" hx-post="/analyze" hx-target="#workspace" hx-swap="outerHTML">
+        {{ tokens() }}<input type="hidden" name="analysis_id" value="{{ suggestion.analysis_id }}">
+        {% for name, value in suggestion.parameters.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        <button class="suggestion-button" type="submit"{% if busy %} disabled{% endif %}>{{ suggestion.label }} <span aria-hidden="true">↗</span></button>
+      </form>
+      {% endfor %}
+    </section>
+    {% endif %}
+    <p class="session-note">Sessão recuperável neste navegador. Expiração por inatividade; fechar a aba não remove seus dados.</p>
+  </aside>
+
+  <div id="results" class="results-panel" tabindex="-1">
+    <div class="results-heading"><div><span class="eyebrow">Workspace analítico</span><h1>Da escrituração à evidência.</h1></div><span class="privacy-label">Dados locais · visualização protegida</span></div>
+    {% if message %}<div class="notice {{ level|default('info') }}" role="{{ 'alert' if level == 'error' else 'status' }}">{{ message }}</div>{% endif %}
+    {% if busy %}<div class="operation" role="status"><span class="spinner" aria-hidden="true"></span><div><strong>{{ operation.label }}</strong><span>{{ operation.phase }}</span></div><span class="badge">Em processamento</span></div>{% endif %}
+    {% if options and not busy %}
+    <section class="panel clarification-panel" aria-labelledby="clarification-title">
+      <span class="eyebrow">Confirme a abrangência</span><h2 id="clarification-title">Escolha como deseja continuar</h2>
+      <p class="help">Revise os critérios antes de executar. A confirmação utiliza a análise completa do catálogo, sem criar filtros adicionais.</p>
+      {% for option in options %}<div class="clarification-option"><h3>{{ option.title }}</h3><ul class="context-list">{% for criterion in option.criteria %}<li>{{ criterion }}</li>{% endfor %}</ul>{% if option.message %}<p class="help">{{ option.message }}</p>{% endif %}<form action="/analyze" method="post" hx-post="/analyze" hx-target="#workspace" hx-swap="outerHTML">{{ tokens() }}<input type="hidden" name="analysis_id" value="{{ option.analysis_id }}"><button class="button secondary compact" type="submit"{% if not option.available %} disabled{% endif %}>Executar esta análise</button></form></div>{% endfor %}
+    </section>
+    {% endif %}
+
+    {% if profile %}
+    <section class="profile-strip" aria-label="Perfil da escrituração">
+      <div><span class="metric-label">Leiaute</span><strong>{{ profile.cod_ver }}</strong><small>EFD ICMS/IPI</small></div>
+      <div><span class="metric-label">Registros lidos</span><strong>{{ profile.record_count }}</strong><small>Com identidade de origem</small></div>
+      <div><span class="metric-label">Anomalias identificadas</span><strong>{{ profile.anomaly_count }}</strong><small>Sem descarte silencioso</small></div>
+    </section>
+    {% endif %}
+
+    {% if report %}{% include "report.html" %}
+    {% else %}
+    <section class="panel empty-state">
+      <span class="empty-symbol" aria-hidden="true">|</span>
+      <span class="eyebrow">{{ 'Pronto para investigar' if profile else 'Comece pelo arquivo' }}</span>
+      <h2>{{ 'Uma pergunta. Critérios visíveis. Evidências.' if profile else 'Seu arquivo, uma base para decisões.' }}</h2>
+      <p>{{ 'Selecione uma análise ou faça uma pergunta. O resultado apresenta a abrangência, as limitações e as referências de origem.' if profile else 'Carregue a escrituração no painel ao lado. Depois, explore as oito análises catalogadas sem depender de uma chave de IA.' }}</p>
+      <div class="capability-list"><span>Precisão decimal</span><span>Rastreabilidade</span><span>CSV e Excel</span></div>
+    </section>
+    {% endif %}
+
+    {% if history %}
+    <section class="panel history-panel" aria-labelledby="history-title">
+      <div class="section-heading"><h2 id="history-title">Histórico desta sessão</h2><span class="muted">Resultados salvos, sem recalcular</span></div>
+      <ul class="history-list">{% for entry in history %}<li><a href="/runs/{{ entry.run_id }}" hx-get="/runs/{{ entry.run_id }}" hx-target="#workspace" hx-swap="outerHTML"{% if report and report.run_id == entry.run_id %} aria-current="true"{% endif %}><span><strong>{{ entry.title }}</strong><small>{{ entry.created_at }}</small></span><span class="badge">{{ entry.status }}</span></a></li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+    {% if profile and profile.records %}
+    <details class="panel structural-detail"><summary>Composição dos registros</summary><dl class="record-counts">{% for record in profile.records %}<div><dt>{{ record.code }}</dt><dd>{{ record.count }}</dd></div>{% endfor %}</dl></details>
+    {% endif %}
+  </div>
+</section>
