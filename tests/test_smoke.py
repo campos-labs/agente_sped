@@ -45,7 +45,21 @@ assert agente_sped.__doc__
     assert result.stdout == ''
 
 
-def test_settings_have_local_defaults_without_credentials() -> None:
+def test_settings_have_local_defaults_without_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings_variables = {
+        'AI_ROUTING_ENABLED',
+        'AI_NARRATIVE_ENABLED',
+        'EXPLORATORY_SQL_ENABLED',
+        'GEMINI_API_KEY',
+        'GEMINI_MODEL',
+        'GEMINI_TIMEOUT_SECONDS',
+    }
+    for name in os.environ.copy():
+        if name.upper() in settings_variables:
+            monkeypatch.delenv(name, raising=False)
+
     settings = Settings(_env_file=None)
 
     assert settings.ai_routing_enabled is False
