@@ -4,9 +4,9 @@ Análises locais e rastreáveis de EFD ICMS/IPI com `COD_VER=020`.
 
 ## Disponível nesta etapa
 
-Parser orientado ao leiaute, oito análises catalogadas e workspace DuckDB local. A CLI oferece seleção ou pergunta, orquestração, síntese determinística, sugestões e exportação de resultados salvos, sem credenciais obrigatórias.
+Parser orientado ao leiaute, oito análises catalogadas e workspace DuckDB local. A interface web local e a CLI oferecem seleção ou pergunta, orquestração, síntese determinística, sugestões e exportação de resultados salvos, sem credenciais obrigatórias.
 
-A cobertura do leiaute é parcial e não substitui a validação pelo PVA. A interface gráfica e a recuperação de sessão pertencem ao próximo incremento. A arquitetura-alvo está em [DESIGN.md](DESIGN.md).
+A cobertura do leiaute é parcial e não substitui a validação pelo PVA. A arquitetura-alvo está em [DESIGN.md](DESIGN.md).
 
 ## Executar localmente
 
@@ -14,6 +14,16 @@ Com Python 3.14 e uv, na raiz do repositório:
 
 ```bash
 uv sync --locked
+uv run --locked agente-sped serve
+```
+
+Abra [http://127.0.0.1:8000](http://127.0.0.1:8000), carregue o TXT e use **Perguntar** ou **Executar análise selecionada**. As ações são distintas; selecionar uma análise confirma seus critérios. Dados sensíveis aparecem mascarados, com revelação explícita. CSV e seu contexto têm downloads separados; Excel inclui o contexto no arquivo.
+
+A sessão persiste em `~/.agente-sped/sessions`, configurável por `SPED_SESSION_ROOT`, e expira após 24 horas sem atividade (`SPED_RETENTION_HOURS`). Reabrir o navegador recupera resultados salvos sem recalcular; operações interrompidas não são retomadas. A limpeza explícita remove o arquivo e os resultados da sessão.
+
+Para usar a CLI, em outro terminal:
+
+```bash
 mkdir workspaces
 uv run --locked agente-sped analyze tests/fixtures/sped_icms_analysis_reference.txt --workspace workspaces/exemplo --analysis movement_by_cfop
 uv run --locked agente-sped run --workspace workspaces/exemplo --analysis cancelled_documents
@@ -29,14 +39,13 @@ Crie `workspaces` uma vez e escolha um destino novo para cada ingestão. Após u
 
 Exportações são mascaradas por padrão; dados sem máscara exigem `--show-sensitive` naquela exportação. XLSX contém abas `Dados` e `Contexto`, com decimais e identificadores como texto exato e contagens numéricas. CSV acompanha JSON de contexto; importe códigos como texto. Textos interpretáveis como fórmula são neutralizados no CSV, com a transformação registrada. Resultados truncados exportam somente as linhas salvas, com contagens e limitações explícitas.
 
-Para construir a imagem Docker e consultar os comandos disponíveis:
+Para executar a interface com Docker:
 
 ```bash
-docker compose build
-docker compose run --rm agente-sped python -m agente_sped --help
+docker compose up --build
 ```
 
-O processamento dispensa `.env` e API key. A imagem não inicia servidor HTTP nem publica portas; arquivos e workspaces usados no contêiner precisam de volumes locais.
+Abra o mesmo endereço local. O Compose publica a porta somente em `127.0.0.1` e mantém as sessões em volume nomeado persistente. O processamento dispensa `.env` e API key; credenciais locais não são passadas automaticamente ao contêiner. `docker compose down` preserva as sessões; a opção `--volumes` apaga o volume.
 
 ## Configuração
 

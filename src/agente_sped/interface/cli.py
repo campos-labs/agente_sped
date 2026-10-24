@@ -22,6 +22,8 @@ from agente_sped.infra.analysis_catalog import (
 )
 from agente_sped.infra.settings import Settings
 
+_MAX_TCP_PORT = 65535
+
 
 def _json_value(value: object) -> str:
     if isinstance(value, Decimal):
@@ -224,6 +226,40 @@ def _positive_mib(value: str) -> int:
     return number
 
 
+def _serve(arguments: argparse.Namespace) -> int:
+    # Os comandos analíticos não precisam importar o servidor HTTP.
+    import uvicorn  # noqa: PLC0415
+
+    from agente_sped.interface.web import (  # noqa: PLC0415
+        WebSettings,
+        create_app,
+    )
+
+    if not 1 <= arguments.port <= _MAX_TCP_PORT:
+        print('A porta deve estar entre 1 e 65535.', file=sys.stderr)
+        return 2
+    try:
+        config = WebSettings(
+            **(
+                {'session_root': arguments.session_root}
+                if arguments.session_root
+                else {}
+            )
+        )
+    except ValidationError:
+        print('Configuração da interface inválida.', file=sys.stderr)
+        return 2
+    uvicorn.run(
+        create_app(config),
+        host=arguments.host,
+        port=arguments.port,
+        workers=1,
+        proxy_headers=False,
+        access_log=False,
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Valida a configuração e executa a ação local solicitada."""
     parser = argparse.ArgumentParser(
@@ -236,6 +272,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         version=f'%(prog)s {version("agente-sped")}',
     )
     commands = parser.add_subparsers(dest='command')
+    serve = commands.add_parser('serve', help='Abre a interface fiscal local.')
+    serve.add_argument(
+        '--host', choices=('127.0.0.1', '0.0.0.0'), default='127.0.0.1'
+    )
+    serve.add_argument('--port', type=int, default=8000)
+    serve.add_argument('--session-root', type=Path)
     analyze = commands.add_parser(
         'analyze',
         help='Interpreta o TXT em um workspace novo e executa uma análise.',
@@ -271,6 +313,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
     arguments = parser.parse_args(argv)
 
+    if arguments.command == 'serve':
+        return _serve(arguments)
+
     try:
         settings = Settings()
     except ValidationError as error:
@@ -291,6 +336,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         'Ingestão: analyze ARQUIVO --workspace DIRETÓRIO_NOVO. '
         'Nova consulta: run --workspace DIRETÓRIO --analysis ID. '
         'Relatórios: ask --workspace DIRETÓRIO --analysis ID. '
-        'A interface gráfica permanece indisponível.'
+        'Interface local: serve (http://127.0.0.1:8000).'
     )
     return 0
