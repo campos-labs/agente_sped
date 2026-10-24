@@ -31,15 +31,8 @@ _C100_VL_MERC_POSITION = 16
 
 
 @pytest.fixture(scope='module')
-def compiled_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    path = tmp_path_factory.mktemp('layout') / 'layout_catalog.duckdb'
-    build_layout_catalog(path)
-    return path
-
-
-@pytest.fixture(scope='module')
-def catalog(compiled_path: Path) -> LayoutCatalog:
-    return load_layout_catalog(compiled_path)
+def catalog(compiled_layout_catalog_path: Path) -> LayoutCatalog:
+    return load_layout_catalog(compiled_layout_catalog_path)
 
 
 def _write_metadata(path: Path, metadata: dict[str, Any]) -> Path:
@@ -232,9 +225,11 @@ def test_unverified_records_and_fields_stay_outside_typed_coverage(
 
 
 def test_corrections_keep_original_metadata_and_do_not_rewrite_csv(
-    compiled_path: Path,
+    compiled_layout_catalog_path: Path,
 ) -> None:
-    with duckdb.connect(str(compiled_path), read_only=True) as connection:
+    with duckdb.connect(
+        str(compiled_layout_catalog_path), read_only=True
+    ) as connection:
         rows = connection.execute(
             'SELECT record_code, position, source_spec_type, spec_type, '
             'verified '
@@ -327,10 +322,10 @@ def test_corrections_hash_and_json_duplicate_keys_are_rejected(
 
 
 def test_modified_compiled_fields_are_rejected(
-    tmp_path: Path, compiled_path: Path
+    tmp_path: Path, compiled_layout_catalog_path: Path
 ) -> None:
     altered = tmp_path / 'altered.duckdb'
-    altered.write_bytes(compiled_path.read_bytes())
+    altered.write_bytes(compiled_layout_catalog_path.read_bytes())
     with duckdb.connect(str(altered)) as connection:
         connection.execute(
             "UPDATE fields SET value_type='integer' "
