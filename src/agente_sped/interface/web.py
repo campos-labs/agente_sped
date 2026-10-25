@@ -149,13 +149,9 @@ class LocalOperations:
                 try:
                     work(session)
                     operation.status = 'completed'
-                except Exception:
+                except Exception as error:
                     operation.status = 'failed'
-                    operation.message = (
-                        'Não foi possível concluir a operação. Confira '
-                        'o arquivo e os parâmetros; resultados anteriores '
-                        'permanecem disponíveis.'
-                    )
+                    operation.message = _operation_error_message(error)
                 finally:
                     if operation.kind == 'upload':
                         session.source_path.unlink(missing_ok=True)
@@ -165,6 +161,28 @@ class LocalOperations:
 
     def close(self) -> None:
         self._executor.shutdown(wait=True)
+
+
+def _operation_error_message(error: Exception) -> str:
+    # Somente códigos conhecidos recebem texto público; nunca expor a exceção.
+    if type(error) is ValueError:
+        if str(error) in {
+            'unsupported_layout_version',
+            'unsupported_obligation',
+        }:
+            return (
+                'Arquivo não suportado. Envie EFD ICMS/IPI com COD_VER=020. '
+                'EFD-Contribuições e leiautes antigos não são aceitos.'
+            )
+        if str(error) == 'invalid_file_header':
+            return (
+                'Cabeçalho do TXT inválido ou incompatível. Envie EFD '
+                'ICMS/IPI com COD_VER=020 e registro 0000 válido.'
+            )
+    return (
+        'Não foi possível concluir a operação. Confira o arquivo e os '
+        'parâmetros; resultados anteriores permanecem disponíveis.'
+    )
 
 
 def _copy_upload(session: WebSession, source: BinaryIO, filename: str) -> None:
@@ -533,9 +551,14 @@ def create_app(settings: WebSettings | None = None) -> FastAPI:  # noqa: PLR0915
                 current.workspace_dir, command, settings=settings
             )
             operation = current.metadata.operation
+            route_label = {
+                'manual': 'Seleção direta. ',
+                'deterministic': 'Roteamento sem IA. ',
+                'provider': 'Roteamento por IA. ',
+            }.get(outcome.state.get('route'), '')
             operation.message = (
-                outcome.message[:500] or 'Resultado disponível.'
-            )
+                route_label + (outcome.message or 'Resultado disponível.')
+            )[:500]
             operation.outcome_status = outcome.state['status']
             operation.options = [
                 option.analysis_id for option in outcome.options

@@ -168,7 +168,7 @@ class WorkspaceManager:
         path = self._directory(identifier) / 'session.json'
         _safe_path(path)
         try:
-            with path.open('rb') as handle:
+            with self._guard, path.open('rb') as handle:
                 raw = handle.read(_MAX_METADATA_BYTES + 1)
             if len(raw) > _MAX_METADATA_BYTES:
                 raise ValueError('Metadados excedem o limite local.')
@@ -194,7 +194,9 @@ class WorkspaceManager:
                 handle.write(raw)
                 handle.flush()
                 os.fsync(handle.fileno())
-            temporary.replace(target)
+            # Evita abertura concorrente durante a substituição no Windows.
+            with self._guard:
+                temporary.replace(target)
         finally:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)

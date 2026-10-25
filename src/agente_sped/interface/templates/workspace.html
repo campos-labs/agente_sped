@@ -30,7 +30,7 @@
       <form action="/ask" method="post" hx-post="/ask" hx-target="#workspace" hx-swap="outerHTML" autocomplete="off">
         {{ tokens() }}
         <label class="sr-only" for="question">Sua pergunta sobre a escrituração</label>
-        <textarea id="question" name="question" rows="3" maxlength="2048" placeholder="Ex.: quais CFOPs concentram as saídas?" required{% if not profile or busy %} disabled{% endif %}></textarea>
+        <textarea id="question" name="question" rows="3" maxlength="2048" placeholder="Ex.: Qual foi o valor das saídas por CFOP?" required{% if not profile or busy %} disabled{% endif %}></textarea>
         <button class="button primary full-width" type="submit"{% if not profile or busy %} disabled{% endif %}>Perguntar</button>
       </form>
       <div class="divider-label"><span>ou selecione uma análise</span></div>
@@ -46,7 +46,8 @@
           {% set active = selection.analysis_id in field.analysis_ids %}
           <div class="parameter-field" data-analyses="{{ field.analysis_ids|join(' ') }}" data-variants="{{ field.variants|tojson|forceescape }}"{% if not active %} hidden{% endif %}>
             <label for="param-{{ field.name }}">{{ field.label }}</label>
-            <input id="param-{{ field.name }}" name="{{ field.name }}" type="{{ 'date' if field.type == 'date' else 'number' }}" value="{{ field.value }}"{% if field.min is defined and field.min is not none %} min="{{ field.min }}"{% endif %}{% if field.max is defined and field.max is not none %} max="{{ field.max }}"{% endif %}{% if field.type != 'date' %} step="{{ field.step|default('1' if field.type == 'integer' else '0.01') }}"{% endif %}{% if field.required %} required{% endif %}{% if not active or not profile or busy %} disabled{% endif %}>
+            <input id="param-{{ field.name }}" name="{{ field.name }}" type="{{ 'date' if field.type == 'date' else 'number' }}" value="{{ field.value }}"{% if field.name in ['threshold_percent', 'max_gap_size'] %} aria-describedby="help-{{ field.name }}"{% endif %}{% if field.min is defined and field.min is not none %} min="{{ field.min }}"{% endif %}{% if field.max is defined and field.max is not none %} max="{{ field.max }}"{% endif %}{% if field.type != 'date' %} step="{{ field.step|default('1' if field.type == 'integer' else '0.01') }}"{% endif %}{% if field.required %} required{% endif %}{% if not active or not profile or busy %} disabled{% endif %}>
+            {% if field.name == 'threshold_percent' %}<p class="help" id="help-threshold_percent">Filtra fornecedores com participação acima do limite (%), antes do arredondamento. Não altera a participação calculada.</p>{% elif field.name == 'max_gap_size' %}<p class="help" id="help-max_gap_size">Número máximo de ausências por intervalo. Não limita a quantidade de intervalos retornados.</p>{% endif %}
           </div>
           {% endfor %}
         </div>

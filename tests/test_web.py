@@ -21,8 +21,10 @@ from fastapi.testclient import TestClient
 
 from agente_sped.application.ingestion import ingest_file
 from agente_sped.application.sessions import WebSession
+from agente_sped.domain.routing import RoutingDecision
 from agente_sped.infra.analysis_catalog import load_analysis_catalog
 from agente_sped.interface import web
+from agente_sped.orchestration import graph
 from tests.test_analytical_core import _ANALYSIS_IDS, _reference_values
 
 _ORIGIN = 'http://localhost'
@@ -87,7 +89,11 @@ class Browser:
             )
             assert response.status_code == HTTPStatus.OK
             operation = self.session.metadata.operation
-            if operation and operation.status != 'running':
+            if (
+                operation
+                and operation.status != 'running'
+                and 'aria-busy="true"' not in response.text
+            ):
                 return response.text
             pause.wait(0.01)
         pytest.fail('A operação HTTP não chegou a um estado final em 30s.')
@@ -335,6 +341,84 @@ def test_ask_distinguishes_generic_intent_and_restricted_scope(browser):
     assert browser.session.metadata.run_ids == [first_run]
 
 
+def test_ask_reports_clarification_then_executes_the_displayed_example(
+    browser,
+):
+    response = browser.post(
+        '/ask', browser.form(question="quais CFOP's concentram as saídas?")
+    )
+    assert response.status_code == HTTPStatus.ACCEPTED
+    page = browser.wait()
+    assert 'Pergunta recebida' in page
+    assert browser.session.metadata.operation.options == ['movement_by_cfop']
+    assert not browser.session.metadata.run_ids
+    assert 'Ex.: Qual foi o valor das saídas por CFOP?' in page
+    response = browser.post(
+        '/ask', browser.form(question='Qual foi o valor das saídas por CFOP?')
+    )
+    assert response.status_code == HTTPStatus.ACCEPTED
+    page = browser.wait()
+    assert 'Roteamento sem IA.' in page
+    run_id = browser.session.metadata.run_ids[-1]
+    assert (
+        browser.manager.report(browser.session, run_id).result.analysis_id
+        == 'movement_by_cfop'
+    )
+
+
+def test_ask_displays_provider_use_only_when_called(
+    tmp_path, reference_workspace, monkeypatch
+):
+    calls = []
+
+    def route(_self, question, catalog):
+        calls.append(question)
+        assert {entry['analysis_id'] for entry in catalog}
+        return RoutingDecision(
+            status='matched',
+            analysis_id='movement_by_cfop',
+            reason='catalog_match',
+        )
+
+    monkeypatch.setattr(graph.GeminiRoutingProvider, 'route', route)
+    settings = _settings(tmp_path / 'sessions')
+    settings.ai_routing_enabled = True
+    with TestClient(web.create_app(settings), base_url=_ORIGIN) as client:
+        browser = Browser(client)
+        _seed(browser, reference_workspace)
+        for question, label, expected_calls in (
+            ('Qual foi o valor das saídas por CFOP?', 'sem IA', 0),
+            ("quais CFOP's concentram as saídas?", 'por IA', 1),
+        ):
+            response = browser.post('/ask', browser.form(question=question))
+            assert response.status_code == HTTPStatus.ACCEPTED
+            assert f'Roteamento {label}.' in browser.wait()
+            assert len(calls) == expected_calls
+
+
+@pytest.mark.parametrize(
+    ('analysis_id', 'parameter', 'cases'),
+    [
+        ('supplier_concentration', 'threshold_percent', ((20, 2), (60, 0))),
+        ('document_sequence_gaps', 'max_gap_size', ((1, 3), (995, 4))),
+    ],
+)
+def test_http_filters_apply_submitted_values(
+    browser, analysis_id, parameter, cases
+):
+    for value, expected_count in cases:
+        response = browser.post(
+            '/analyze',
+            browser.form(analysis_id=analysis_id, **{parameter: str(value)}),
+        )
+        assert response.status_code == HTTPStatus.ACCEPTED
+        browser.wait()
+        run_id = browser.session.metadata.run_ids[-1]
+        result = browser.manager.report(browser.session, run_id).result
+        assert result.parameters[parameter] == value
+        assert result.total_count == expected_count
+
+
 def test_polling_and_persistent_cookie_recover_saved_report_after_restart(
     tmp_path, reference_workspace
 ):
@@ -466,6 +550,41 @@ def test_upload_and_clear_use_existing_ingestion_contract(
         assert not session.directory.exists()
         assert browser.session.identifier != session.identifier
         assert not browser.session.metadata.workspace_ready
+
+
+@pytest.mark.parametrize('version', [b'018', b'002'])
+def test_unsupported_upload_explains_scope_and_allows_valid_retry(
+    tmp_path, version
+):
+    source = _REFERENCE.read_bytes()
+    unsupported = source.replace(b'|0000|020|', b'|0000|' + version + b'|', 1)
+    assert unsupported != source
+    with TestClient(
+        web.create_app(_settings(tmp_path / 'sessions')), base_url=_ORIGIN
+    ) as client:
+        browser = Browser(client)
+        client.get('/')
+        response = browser.post(
+            '/upload',
+            browser.form(),
+            files={'file': ('synthetic.txt', unsupported, 'text/plain')},
+        )
+        assert response.status_code == HTTPStatus.ACCEPTED
+        page = browser.wait()
+        assert browser.session.metadata.operation.status == 'failed'
+        assert 'Arquivo não suportado.' in page
+        assert 'EFD ICMS/IPI com COD_VER=020' in page
+        assert not browser.session.metadata.workspace_ready
+        assert not browser.session.workspace_dir.exists()
+        assert not browser.session.source_path.exists()
+        response = browser.post(
+            '/upload',
+            browser.form(),
+            files={'file': ('synthetic.txt', source, 'text/plain')},
+        )
+        assert response.status_code == HTTPStatus.ACCEPTED
+        browser.wait()
+        assert browser.session.metadata.workspace_ready
 
 
 def test_body_limit_rejects_chunked_upload_without_content_length(

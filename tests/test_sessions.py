@@ -2,8 +2,10 @@
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from threading import Event
 from uuid import uuid4
 
 import pytest
@@ -153,6 +155,52 @@ def test_metadata_validation_does_not_silently_reset_local_data(tmp_path):
         manager.open(session.token)
     assert manager.cleanup() == 0
     assert session.directory.exists()
+
+
+def test_polling_waits_for_atomic_metadata_replacement(tmp_path, monkeypatch):
+    manager = WorkspaceManager(tmp_path)
+    session = manager.open(None)
+    reader_session = manager.open(session.token, touch=False)
+    target = session.directory / 'session.json'
+    replacing, release, reading, finished = Event(), Event(), Event(), Event()
+    original_replace, original_open = Path.replace, Path.open
+
+    def replace(path, destination):
+        if destination == target:
+            replacing.set()
+            assert release.wait(5)
+        return original_replace(path, destination)
+
+    def open_path(path, *args, **kwargs):
+        if path == target and replacing.is_set() and not release.is_set():
+            raise PermissionError('Synthetic Windows replacement conflict')
+        return original_open(path, *args, **kwargs)
+
+    def write():
+        with manager.lease(session):
+            session.metadata.source_name = 'synthetic.txt'
+            manager.save(session)
+
+    def read():
+        reading.set()
+        try:
+            return manager.read(reader_session)
+        finally:
+            finished.set()
+
+    monkeypatch.setattr(Path, 'replace', replace)
+    monkeypatch.setattr(Path, 'open', open_path)
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        writer = workers.submit(write)
+        assert replacing.wait(5)
+        reader = workers.submit(read)
+        try:
+            assert reading.wait(5)
+            assert not finished.wait(0.05)
+        finally:
+            release.set()
+        writer.result(timeout=5)
+        assert reader.result(timeout=5).source_name == 'synthetic.txt'
 
 
 def test_paths_and_linked_data_are_not_followed(tmp_path):
