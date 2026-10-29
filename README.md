@@ -65,4 +65,6 @@ O código fica em `src/agente_sped`, dividido entre `domain`, `application`, `in
 
 Os comandos e dependências estão em [pyproject.toml](pyproject.toml); as orientações para agentes, em [AGENTS.md](AGENTS.md).
 
+Studio opcional, somente com dados sintéticos: execute `uv run --locked --group studio python devtools/studio.py`, abra a URL Studio indicada, escolha `p1`, `clarification` ou `provider_failure` e envie `{"action":"analysis","status":"pending"}` em Graph, sempre em uma thread nova. Não exige chave Gemini; a interface hospedada pode exigir autenticação LangSmith. Retomada e edição de estado são recusadas. `Ctrl+C` encerra e limpa a sessão temporária. [Captura real](docs/assets/langgraph-studio.png).
+
 Contribuições seguem o [fluxo da Campos Labs](https://github.com/campos-labs/.github/blob/main/CONTRIBUTING.md). Para relatar vulnerabilidades, consulte a [política de segurança](https://github.com/campos-labs/.github/blob/main/SECURITY.md).
