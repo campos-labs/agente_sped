@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from uuid import UUID
 
 from langgraph.graph.state import CompiledStateGraph
 from langgraph_sdk.runtime import ServerRuntime
@@ -72,6 +73,7 @@ class DemoRequests(BaseHTTPMiddleware):
             if match is None or not _new_run(body, match.group(1)):
                 raise ValueError
             if thread_id := match.group(1):
+                thread_id = str(UUID(thread_id))
                 if thread_id in self.used_threads:
                     raise ValueError
                 # No await between checking and reserving this thread.

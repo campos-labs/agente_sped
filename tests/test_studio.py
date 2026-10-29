@@ -5,6 +5,7 @@ import importlib.util
 from http import HTTPStatus
 from pathlib import Path
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 
@@ -60,7 +61,7 @@ def demo_client():
 )
 def test_unsupported_run_never_reaches_server(demo_client, change):
     response = demo_client.post(
-        '/threads/new/runs/stream',
+        f'/threads/{uuid4()}/runs/stream',
         json={'input': {'action': 'analysis', 'status': 'pending'}, **change},
     )
     assert response.status_code == HTTPStatus.FORBIDDEN
@@ -68,8 +69,9 @@ def test_unsupported_run_never_reaches_server(demo_client, change):
 
 def test_only_new_threads_and_no_state_edits(demo_client):
     body = {'input': {'action': 'analysis', 'status': 'pending'}}
-    path = '/threads/first/runs/stream'
-    studio_body = {**body, 'config': {'configurable': {'thread_id': 'first'}}}
+    first, second, third = (str(uuid4()) for _ in range(3))
+    path = f'/threads/{first}/runs/stream'
+    studio_body = {**body, 'config': {'configurable': {'thread_id': first}}}
     assert (
         demo_client.post(path, json=studio_body).status_code == HTTPStatus.OK
     )
@@ -77,16 +79,22 @@ def test_only_new_threads_and_no_state_edits(demo_client):
         demo_client.post(path, json=body).status_code == HTTPStatus.FORBIDDEN
     )
     assert (
-        demo_client.post('/threads/second/runs/stream', json=body).status_code
+        demo_client.post(
+            f'/threads/{second}/runs/stream', json=body
+        ).status_code
         == HTTPStatus.OK
     )
     assert (
         demo_client.post(
-            '/threads/third/runs/stream', json=studio_body
+            f'/threads/{third}/runs/stream', json=studio_body
         ).status_code
         == HTTPStatus.FORBIDDEN
     )
-    for path in ('/threads/first/state', '/threads/first/copy', '/runs/batch'):
+    for path in (
+        f'/threads/{first}/state',
+        f'/threads/{first}/copy',
+        '/runs/batch',
+    ):
         assert (
             demo_client.post(path, json={}).status_code == HTTPStatus.FORBIDDEN
         )
@@ -94,6 +102,21 @@ def test_only_new_threads_and_no_state_edits(demo_client):
         '/threads', json={'supersteps': [{'values': {}}]}
     )
     assert imported.status_code == HTTPStatus.FORBIDDEN
+
+
+@pytest.mark.parametrize('uppercase_first', [False, True])
+def test_thread_uuid_case_does_not_allow_reuse(demo_client, uppercase_first):
+    thread_id = 'abcdefab-1234-4567-89ab-abcdefabcdef'
+    variants = [thread_id, thread_id.upper()]
+    if uppercase_first:
+        variants.reverse()
+    body = {'input': {'action': 'analysis', 'status': 'pending'}}
+    first = demo_client.post(f'/threads/{variants[0]}/runs/stream', json=body)
+    repeated = demo_client.post(
+        f'/threads/{variants[1]}/runs/stream', json=body
+    )
+    assert first.status_code == HTTPStatus.OK
+    assert repeated.status_code == HTTPStatus.FORBIDDEN
 
 
 @pytest.fixture(scope='module')
