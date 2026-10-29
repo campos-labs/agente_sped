@@ -17,6 +17,7 @@ FROM python:3.14-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    SPED_SESSION_ROOT=/home/agente-sped/sessions \
     PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
@@ -31,4 +32,4 @@ COPY --from=builder /app/.venv /app/.venv
 
 USER agente-sped
 
-CMD ["agente-sped", "serve", "--host", "0.0.0.0", "--session-root", "/home/agente-sped/sessions"]
+CMD ["uvicorn", "agente_sped.interface.web:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-proxy-headers", "--no-access-log"]

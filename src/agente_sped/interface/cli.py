@@ -274,7 +274,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     commands = parser.add_subparsers(dest='command')
     serve = commands.add_parser('serve', help='Abre a interface fiscal local.')
     serve.add_argument(
-        '--host', choices=('127.0.0.1', '0.0.0.0'), default='127.0.0.1'
+        '--host', choices=('127.0.0.1', '::1'), default='127.0.0.1'
     )
     serve.add_argument('--port', type=int, default=8000)
     serve.add_argument('--session-root', type=Path)
