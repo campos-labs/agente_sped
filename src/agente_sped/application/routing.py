@@ -308,8 +308,10 @@ def resolve_route(
     return RouteResolution(
         RoutingDecision(status='needs_clarification', reason='ambiguous'),
         'none',
-        'Selecione uma análise catalogada e confira seus critérios.',
-        matches or catalog.analysis_ids,
+        'Pergunta recebida, mas não identificada com segurança sem IA. '
+        'Selecione uma análise abaixo e confira seus critérios '
+        'para confirmar a execução.',
+        matches or generic or catalog.analysis_ids,
     )
 
 

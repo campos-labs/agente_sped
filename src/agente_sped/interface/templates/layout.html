@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Agente SPED · Análise fiscal local</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#results">Ir para os resultados</a>
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="Agente SPED, início">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      <span>Agente <strong>SPED</strong><small>Investigação fiscal rastreável</small></span>
+    </a>
+    <div class="header-context"><span class="status-dot" aria-hidden="true"></span> Ambiente local <span class="header-divider">/</span> EFD ICMS/IPI</div>
+  </header>
+  <main class="app-main">{% include "workspace.html" %}</main>
+  <footer class="app-footer">Dados e resultados permanecem neste ambiente. A análise apoia a investigação técnica e não substitui o PVA ou um parecer fiscal.</footer>
+</body>
+</html>

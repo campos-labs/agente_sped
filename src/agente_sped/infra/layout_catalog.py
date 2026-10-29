@@ -9,7 +9,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import duckdb
 
@@ -262,6 +262,24 @@ def _catalog(
     )
 
 
+def _insert_compiled_rows(
+    connection: duckdb.DuckDBPyConnection,
+    table: Literal['records', 'fields'],
+    rows: list[tuple[Any, ...]],
+    types: tuple[str, ...],
+) -> None:
+    # Um parâmetro evita conversões Python opcionais para cada célula.
+    columns = ', '.join(
+        f"CAST(json_extract_string(value, '$[{index}]') AS {kind})"
+        for index, kind in enumerate(types)
+    )
+    connection.execute(
+        f'INSERT INTO {table} SELECT {columns} '
+        'FROM json_each(CAST(? AS JSON))',
+        [json.dumps(rows, ensure_ascii=False, allow_nan=False)],
+    )
+
+
 def build_layout_catalog(
     path: Path,
     *,
@@ -317,16 +335,31 @@ def build_layout_catalog(
                 'INSERT INTO catalog_metadata VALUES (?, ?)',
                 list(metadata.items()),
             )
-            connection.execute(
-                'INSERT INTO records VALUES '
-                + ','.join(['(?, ?, ?)'] * len(record_rows)),
-                [value for row in record_rows for value in row],
+            _insert_compiled_rows(
+                connection,
+                'records',
+                record_rows,
+                ('VARCHAR', 'INTEGER', 'BOOLEAN'),
             )
-            placeholders = '(' + ','.join(['?'] * 13) + ')'
-            connection.execute(
-                'INSERT INTO fields VALUES '
-                + ','.join([placeholders] * len(field_rows)),
-                [value for row in field_rows for value in row],
+            _insert_compiled_rows(
+                connection,
+                'fields',
+                field_rows,
+                (
+                    'VARCHAR',
+                    'INTEGER',
+                    'VARCHAR',
+                    'VARCHAR',
+                    'VARCHAR',
+                    'INTEGER',
+                    'BOOLEAN',
+                    'VARCHAR',
+                    'VARCHAR',
+                    'VARCHAR',
+                    'VARCHAR',
+                    'VARCHAR',
+                    'BOOLEAN',
+                ),
             )
             connection.execute('COMMIT')
         staged_path.replace(path)

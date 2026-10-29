@@ -17,6 +17,30 @@ from agente_sped.interface import cli
 _CLI_ERROR = 2
 
 
+@pytest.mark.parametrize('host', ['0.0.0.0', '192.168.1.10'])
+def test_serve_rejects_network_bind(host, capsys):
+    with pytest.raises(SystemExit) as error:
+        cli.main(['serve', '--host', host])
+    assert error.value.code == _CLI_ERROR
+    assert 'invalid choice' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('host', [None, '::1'])
+def test_serve_uses_loopback_only(host, tmp_path, monkeypatch):
+    import uvicorn  # noqa: PLC0415
+
+    calls = []
+    monkeypatch.setattr(uvicorn, 'run', lambda app, **kw: calls.append(kw))
+    arguments = ['serve', '--session-root', str(tmp_path / 'sessions')]
+    if host is not None:
+        arguments.extend(['--host', host])
+    assert cli.main(arguments) == 0
+    assert calls[0]['host'] == (host or '127.0.0.1')
+    assert calls[0]['workers'] == 1
+    assert calls[0]['proxy_headers'] is False
+    assert calls[0]['access_log'] is False
+
+
 def test_service_reports_applied_read_limit(tmp_path, monkeypatch):
     source = tmp_path / 'source.txt'
     source.write_bytes(b'x' * 64)
