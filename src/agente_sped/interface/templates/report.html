@@ -1,0 +1,41 @@
+{% from "forms.html" import tokens with context %}
+{% set parameter_labels = report.parameter_labels|default({}) %}
+<article class="panel report" aria-labelledby="report-title">
+  <header class="report-heading"><div><span class="eyebrow">Resultado catalogado</span><h2 id="report-title">{{ report.title }}</h2></div><span class="badge accent">{{ report.status_label }}</span></header>
+  <div class="summary" aria-label="Síntese determinística">{% for paragraph in report.summary %}<p>{{ paragraph }}</p>{% endfor %}</div>
+  <div class="result-meta"><span><strong>{{ report.rows|length }}</strong> linhas nesta página · <strong>{{ report.saved_rows }}</strong> salvas de <strong>{{ report.total_rows }}</strong></span><span>{{ 'Resultado da análise truncado' if report.truncated else 'Análise sem truncamento' }}</span><span>{{ 'Dados revelados nesta visualização' if report.revealed else 'Dados sensíveis mascarados' }}</span></div>
+
+  <div class="table-container" role="region" aria-label="Tabela de resultados" tabindex="0">
+    <table>
+      <caption class="sr-only">{{ report.title }}. {{ report.rows|length }} linhas nesta página.</caption>
+      <thead><tr>{% for column in report.columns %}<th scope="col">{{ column.label }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for row in report.rows %}<tr>{% for cell in row %}<td>{{ cell|value }}</td>{% endfor %}</tr>{% else %}<tr><td class="empty-cell" colspan="{{ report.columns|length }}">Nenhuma linha retornada pelos critérios desta execução. Confira a síntese e as limitações.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% if report.pages > 1 %}<nav class="pagination" aria-label="Páginas do resultado"><span>Linhas {{ report.page_start }}–{{ report.page_end }} · página {{ report.page }} de {{ report.pages }}</span><div>{% if report.prev_url %}<a href="{{ report.prev_url }}" hx-get="{{ report.prev_url }}" hx-target="#workspace" hx-swap="outerHTML">Anterior</a>{% endif %}{% if report.next_url %}<a href="{{ report.next_url }}" hx-get="{{ report.next_url }}" hx-target="#workspace" hx-swap="outerHTML">Próxima</a>{% endif %}</div></nav>{% endif %}
+
+  <div class="report-actions">
+    {% if report.sensitive %}
+    <form action="/runs/{{ report.run_id }}/reveal" method="post" hx-post="/runs/{{ report.run_id }}/reveal" hx-target="#workspace" hx-swap="outerHTML"{% if not report.revealed %} data-confirm="Revelar os dados sensíveis deste resultado nesta tela? Eles permanecerão no ambiente local."{% endif %}>
+      {{ tokens() }}<input type="hidden" name="show_sensitive" value="{{ 'false' if report.revealed else 'true' }}"><button class="button compact secondary" type="submit"{% if busy %} disabled{% endif %}>{{ 'Mascarar dados' if report.revealed else 'Revelar dados originais' }}</button>
+    </form>
+    {% endif %}
+    <form class="export-form" action="/runs/{{ report.run_id }}/exports" method="post" hx-post="/runs/{{ report.run_id }}/exports" hx-target="#workspace" hx-swap="outerHTML">
+      {{ tokens() }}
+      <label class="sr-only" for="export-format">Formato de exportação</label><select id="export-format" name="format"{% if busy %} disabled{% endif %}><option value="xlsx">Excel (.xlsx)</option><option value="csv">CSV + contexto</option></select>
+      {% if report.sensitive %}<label class="checkbox-label"><input type="checkbox" name="show_sensitive" value="true"{% if busy %} disabled{% endif %}>Incluir dados originais</label>{% endif %}
+      <button class="button compact primary" type="submit"{% if busy %} disabled{% endif %}>Preparar exportação</button>
+    </form>
+  </div>
+  <p class="help">A exportação reutiliza o resultado salvo, sem nova consulta ou chamada à IA. Valores decimais e identificadores são preservados.</p>
+  {% if exports %}<div class="downloads" role="status"><strong>Arquivos disponíveis</strong>{% for export in exports %}<div><span>{{ export.label }} · {{ 'Dados originais' if export.privacy_mode == 'raw' else 'Mascarado' }}</span><a href="{{ export.data_url }}" download>Baixar {{ export.format|upper }}</a>{% if export.context_url %}<a href="{{ export.context_url }}" download>Baixar contexto</a>{% endif %}</div>{% endfor %}</div>{% endif %}
+
+  <div class="report-context">
+    {% if report.evidence %}<details><summary>Evidências de origem</summary><p class="help">Referências dos registros presentes nesta página. A linha original pode conter dados sensíveis; sua exibição exige confirmação.</p><ul class="evidence-list">{% for item in report.evidence %}<li><span><strong>{{ item.record_code }}</strong> · linha {{ item.source_line }} · registro {{ item.record_id }}{% if item.parent_record_id %} · pai {{ item.parent_record_id }}{% endif %}</span><form action="/runs/{{ report.run_id }}/evidence/{{ item.record_id }}" method="post" hx-post="/runs/{{ report.run_id }}/evidence/{{ item.record_id }}" hx-target="#workspace" hx-swap="outerHTML" data-confirm="Revelar a linha original deste registro? Ela pode conter identificadores e outros dados sensíveis.">{{ tokens() }}<button class="text-button" type="submit"{% if busy %} disabled{% endif %}>Revelar linha original</button></form></li>{% endfor %}</ul></details>{% endif %}
+    {% if report.original_evidence is defined and report.original_evidence %}<section class="revealed-evidence" aria-label="Linha original revelada"><h3>{{ report.original_evidence.record_code }} · linha {{ report.original_evidence.source_line }}</h3><p class="help">Conteúdo original exibido por sua solicitação nesta tela.</p><pre><code>{{ report.original_evidence.text }}</code></pre></section>{% endif %}
+    <details open><summary>Critérios e parâmetros aplicados</summary><ul class="context-list">{% for criterion in report.criteria %}<li>{{ criterion }}</li>{% endfor %}</ul>{% if report.parameters %}<dl class="parameter-values">{% for name, value in report.parameters.items() %}<div><dt>{{ parameter_labels.get(name, name) }}</dt><dd>{{ value|value }}</dd></div>{% endfor %}</dl>{% endif %}</details>
+    {% if report.limitations %}<details open><summary>Limitações da análise</summary><ul class="context-list">{% for limitation in report.limitations %}<li>{{ limitation }}</li>{% endfor %}</ul></details>{% endif %}
+    {% if report.sql %}<details><summary>SQL do catálogo</summary><p class="help">Consulta versionada da análise. Os valores dos parâmetros são vinculados na execução.</p><pre><code>{{ report.sql }}</code></pre></details>{% endif %}
+    <details><summary>Rastreabilidade da execução</summary><dl class="trace-values"><div><dt>Execução</dt><dd>{{ report.run_id }}</dd></div><div><dt>Análise</dt><dd>{{ report.analysis_id }} · {{ report.analysis_version }}</dd></div>{% if report.catalog_version %}<div><dt>Catálogo</dt><dd>{{ report.catalog_version }}</dd></div>{% endif %}{% if report.layout_version %}<div><dt>Leiaute</dt><dd>{{ report.layout_version }}</dd></div>{% endif %}{% if report.created_at %}<div><dt>Resultado produzido em</dt><dd>{{ report.created_at }}</dd></div>{% endif %}{% if report.source_sha256 %}<div><dt>SHA-256 da fonte</dt><dd>{{ report.source_sha256 }}</dd></div>{% endif %}</dl></details>
+  </div>
+</article>

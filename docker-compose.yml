@@ -4,3 +4,10 @@ services:
       context: .
       dockerfile: Dockerfile
     image: agente-sped:local
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - agente-sped-sessions:/home/agente-sped/sessions
+
+volumes:
+  agente-sped-sessions:

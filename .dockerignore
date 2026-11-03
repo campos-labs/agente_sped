@@ -10,3 +10,7 @@
 !src/agente_sped/data/**/*.csv
 !src/agente_sped/data/**/*.json
 !src/agente_sped/data/**/*.yml
+!src/agente_sped/interface/templates/*.html
+!src/agente_sped/interface/static/*.css
+!src/agente_sped/interface/static/*.js
+!src/agente_sped/interface/static/*.LICENSE
