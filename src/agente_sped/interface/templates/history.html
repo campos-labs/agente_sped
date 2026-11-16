@@ -1,0 +1,38 @@
+{% macro history_header(entry) %}
+  <span class="history-main">
+    <span class="history-date">{{ entry.created_at }}</span>
+    <strong class="history-title">{{ entry.title }}</strong>
+  </span>
+  <span class="badge history-state">{{ entry.status }}</span>
+  <span class="history-chevron" aria-hidden="true"></span>
+{% endmacro %}
+
+{% macro expanded_report(entry) %}
+  <li class="panel history-entry">
+    <details open>
+      <summary id="history-{{ entry.run_id }}" class="history-summary">{{ history_header(entry) }}</summary>
+      <div class="history-content">{% include "report.html" %}</div>
+    </details>
+  </li>
+{% endmacro %}
+
+<ol class="history-stack" aria-label="Histórico de análises">
+  {% for entry in history %}
+    {% if report and not busy and entry.run_id == report.run_id %}
+      {{ expanded_report(entry) }}
+    {% else %}
+    <li class="panel history-entry">
+      {% if busy %}
+      <div class="history-summary" aria-disabled="true">{{ history_header(entry) }}</div>
+      {% else %}
+      <a id="history-{{ entry.run_id }}" class="history-summary" href="/runs/{{ entry.run_id }}" hx-get="/runs/{{ entry.run_id }}" hx-target="#workspace" hx-swap="outerHTML" aria-expanded="false">
+        {{ history_header(entry) }}
+      </a>
+      {% endif %}
+    </li>
+    {% endif %}
+  {% endfor %}
+  {% if report and not busy and not history|selectattr('run_id', 'equalto', report.run_id)|list %}
+    {{ expanded_report({'run_id': report.run_id, 'title': report.title, 'created_at': report.created_at, 'status': report.status_label}) }}
+  {% endif %}
+</ol>

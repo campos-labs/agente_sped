@@ -1,0 +1,17 @@
+{% from "forms.html" import tokens with context %}
+<form class="export-form" action="/runs/{{ report.run_id }}/exports" method="post" hx-post="/runs/{{ report.run_id }}/exports" hx-target="#workspace" hx-swap="outerHTML">
+  {{ tokens() }}
+  <button class="chip export" name="format" value="xlsx" type="submit"{% if busy %} disabled{% endif %}>Exportar Excel</button>
+  <button class="chip export" name="format" value="csv" type="submit"{% if busy %} disabled{% endif %}>Exportar CSV + contexto</button>
+  {% if report.sensitive %}
+  <label class="checkbox-label">
+    <input type="checkbox" name="show_sensitive" value="true"{% if busy %} disabled{% endif %}>Incluir dados originais na exportação
+  </label>
+  {% endif %}
+</form>
+{% if report.sensitive %}
+<form action="/runs/{{ report.run_id }}/reveal" method="post" hx-post="/runs/{{ report.run_id }}/reveal" hx-target="#workspace" hx-swap="outerHTML"{% if not report.revealed %} data-confirm="Revelar os dados sensíveis deste resultado?"{% endif %}>
+  {{ tokens() }}<input type="hidden" name="show_sensitive" value="{{ 'false' if report.revealed else 'true' }}">
+  <button class="chip utility" type="submit"{% if busy %} disabled{% endif %}>{{ 'Mascarar dados' if report.revealed else 'Revelar dados originais' }}</button>
+</form>
+{% endif %}

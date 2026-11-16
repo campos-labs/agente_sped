@@ -2,3 +2,19 @@
 <input type="hidden" name="csrf" value="{{ csrf }}">
 <input type="hidden" name="request_id" value="{{ request_id }}">
 {%- endmacro %}
+
+{% macro end_session(busy) %}
+<form action="/session/clear" method="post" hx-post="/session/clear" hx-target="#workspace" hx-swap="outerHTML" data-confirm="Encerrar esta sessão? O arquivo, os resultados e as exportações serão removidos.">
+  {{ tokens() }}
+  <button class="chip danger" type="submit"{% if busy %} disabled{% endif %}>Encerrar sessão</button>
+</form>
+{% endmacro %}
+
+{% macro analysis_period(analysis_id) %}
+  {% for field in parameter_fields if analysis_id in field.analysis_ids %}
+  {% set variant = field.variants[analysis_id] %}
+  {% if variant.type == 'date' %}
+  <input type="hidden" name="{{ field.name }}" value="{{ variant.value }}" data-period-field>
+  {% endif %}
+  {% endfor %}
+{% endmacro %}
