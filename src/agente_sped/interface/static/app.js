@@ -1,34 +1,71 @@
 "use strict";
 
+let rememberedPeriod;
+
 function updateAnalysisFields(form) {
   const selection = form.querySelector("[name='analysis_id']");
-  if (!selection) return;
-  for (const field of form.querySelectorAll("[data-analyses]")) {
-    const active = field.dataset.analyses.split(" ").includes(selection.value);
-    field.hidden = !active;
+  for (const field of form.querySelectorAll("[data-variants]")) {
+    const input = field.querySelector("input");
     const variant = JSON.parse(field.dataset.variants)[selection.value];
-    for (const input of field.querySelectorAll("input")) {
-      input.disabled = !active || selection.disabled;
-      if (!active || !variant) continue;
-      input.type = variant.type === "date" ? "date" : "number";
-      input.value = variant.value;
-      input.required = variant.required;
-      for (const name of ["min", "max", "step"]) {
-        const value = variant[name];
-        if (value === null || variant.type === "date" && name === "step") {
-          input.removeAttribute(name);
-        } else {
-          input.setAttribute(name, value);
-        }
-      }
-      field.querySelector("label").textContent = variant.label;
+    field.hidden = !variant || input.type === "hidden";
+    input.disabled = !variant || selection.disabled;
+    if (!variant) continue;
+
+    input.value = variant.value;
+    if (input.type === "hidden") continue;
+    input.required = variant.required;
+    for (const name of ["min", "max", "step"]) {
+      const value = variant[name];
+      if (value === null) input.removeAttribute(name);
+      else input.setAttribute(name, value);
     }
+    field.querySelector("label").textContent = variant.label;
   }
-  const note = form.querySelector("[data-full-period]");
-  if (note) {
-    note.hidden = selection.selectedOptions[0]?.dataset.periodScope !== "full_file";
+  form.querySelector("[data-full-period]").hidden =
+    selection.selectedOptions[0]?.dataset.periodScope !== "full_file";
+}
+
+function restorePeriod() {
+  const period = document.querySelector("[data-source-period]");
+  if (!period) {
+    if (!document.querySelector("#workspace[aria-busy='true']")) rememberedPeriod = undefined;
+    return;
+  }
+  if (rememberedPeriod?.source !== period.dataset.sourcePeriod) return;
+  for (const input of period.querySelectorAll("input")) {
+    input.value = rememberedPeriod.values[input.name];
   }
 }
+
+function applyPeriod(form) {
+  const fields = Array.from(form.querySelectorAll("[data-period-field]:not(:disabled)"));
+  const period = document.querySelector("[data-source-period]");
+  if (!fields.length || !period) return true;
+
+  const inputs = Array.from(period.querySelectorAll("input"));
+  const [start, end] = inputs;
+  end.setCustomValidity(start.value && end.value && start.value > end.value ?
+    "A data final deve ser igual ou posterior à inicial." : "");
+  for (const input of inputs) {
+    if (!input.reportValidity()) return false;
+  }
+  for (const field of fields) {
+    const source = inputs.find((input) => input.name === field.name);
+    if (source) field.value = source.value;
+  }
+  return true;
+}
+
+document.addEventListener("input", (event) => {
+  const period = event.target.closest("[data-source-period]");
+  if (!period) return;
+  const inputs = Array.from(period.querySelectorAll("input"));
+  for (const input of inputs) input.setCustomValidity("");
+  rememberedPeriod = {
+    source: period.dataset.sourcePeriod,
+    values: Object.fromEntries(inputs.map((input) => [input.name, input.value])),
+  };
+});
 
 document.addEventListener("change", (event) => {
   if (!event.target.matches("select[name='analysis_id']")) return;
@@ -37,18 +74,12 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("submit", (event) => {
-  const question = event.target.dataset.confirm;
-  if (question && !window.confirm(question)) {
+  const form = event.target;
+  const confirmation = form.dataset.confirm;
+  if ((confirmation && !window.confirm(confirmation)) || !applyPeriod(form)) {
     event.preventDefault();
     event.stopImmediatePropagation();
   }
 }, true);
 
-function initializeForms() {
-  for (const form of document.querySelectorAll("[data-analysis-form]")) {
-    updateAnalysisFields(form);
-  }
-}
-
-document.addEventListener("DOMContentLoaded", initializeForms);
-document.addEventListener("htmx:after:swap", initializeForms);
+document.addEventListener("htmx:after:swap", restorePeriod);
